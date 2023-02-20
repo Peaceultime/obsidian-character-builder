@@ -6,3 +6,51 @@ available in the app when your plugin is enabled.
 If your plugin does not need CSS, delete this file.
 
 */
+
+.character-builder-group-container
+{
+    padding: .25em 0;
+}
+.character-builder-group-title
+{
+    font-variant: var(--h4-variant);
+    letter-spacing: 0.015em;
+    line-height: var(--h4-line-height);
+    font-size: var(--h4-size);
+    color: var(--h4-color);
+    font-weight: var(--h4-weight);
+    font-style: var(--h4-style);
+    font-family: var(--h4-font);
+    margin-bottom: .5em;
+    padding: 0 1.25em;
+    background-color: var(--modal-background);
+    position: relative;
+    display: inline;
+    top: -14px;
+}
+.character-builder-group-collapsible
+{
+    height: 1px;
+    margin: 1em 0;
+    border-top: 1px solid var(--background-modifier-border);
+}
+.character-builder-group-collapse-icon
+{
+    color: var(--nav-collapse-icon-color);
+    background-color: var(--modal-background);
+    stroke-width: 4px;
+    width: 10px;
+    height: 10px;
+    transition: transform 100ms ease-in-out;
+    position: relative;
+    top: -17px;
+}
+.character-builder-group-collapsed .character-builder-group-collapse-icon
+{
+	transform: rotate(-90deg);
+	color: var(--nav-collapse-icon-color-collapsed);
+}
+.character-builder-group-collapsed .character-builder-group-content
+{
+	display: none;
+}
