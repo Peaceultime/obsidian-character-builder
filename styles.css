@@ -54,3 +54,7 @@ If your plugin does not need CSS, delete this file.
 {
 	display: none;
 }
+[data-type="character-builder-full-view"] .setting-item
+{
+    align-items: start !important;
+}

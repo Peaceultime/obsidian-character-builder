@@ -1,4 +1,4 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { App, Editor, MarkdownPreviewView, ItemView, WorkspaceLeaf, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
 
 interface CharacterBuilderSettings {
 	folder: string;
@@ -47,17 +47,26 @@ class CharacterBuilderCache {
 	}
 }
 
-const characterBuilderCache = new CharacterBuilderCache();
-
 export default class CharacterBuilder extends Plugin {
 	settings: CharacterBuilderSettings;
 
-	async onload() {
+	async onload(): void {
 		await this.loadSettings();
 		await this.initCache();
 
+		this.registerView(
+			VIEW_TYPE_CHARACTER_BUILDER_FULL,
+			(leaf) => new CharacterBuilderFullView(leaf),
+		);
+
 		// This creates an icon in the left ribbon.
-		const ribbonIconEl = this.addRibbonIcon('calculator', 'Create new character', (evt: MouseEvent) => {
+		this.addRibbonIcon('calculator', 'Create new character', async (evt: MouseEvent) => {
+			const leaf = this.app.workspace.getLeaf();
+			await leaf.setViewState({ type: VIEW_TYPE_CHARACTER_BUILDER_FULL, active: true, });
+			this.app.workspace.revealLeaf(leaf);
+		});
+
+		this.addRibbonIcon('dice', 'Create character from template', (evt: MouseEvent) => {
 			// Called when the user clicks the icon.
 			new CharacterBuilderModal(this.app).open();
 		});
@@ -69,12 +78,12 @@ export default class CharacterBuilder extends Plugin {
 		//this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
 	}
 
-	onunload() {
-
+	async onunload() {
+		this.app.workspace.detachLeavesOfType(VIEW_TYPE_CHARACTER_BUILDER_FULL);
 	}
 
-	async initCache() {
-		window.CharacterBuilderCache = CharacterBuilderCache;
+	async initCache(): void {
+		window.CharacterBuilderCache = CharacterBuilderCache; //DEBUG
 
 		const files = this.app.vault.getMarkdownFiles();
 
@@ -98,80 +107,127 @@ export default class CharacterBuilder extends Plugin {
 		return {...this.app.metadataCache.getFileCache(file), name: file.basename, parent: file.parent.name, path: file.path};
 	}
 
-	async loadSettings() {
+	async loadSettings(): void {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
 	}
 
-	async saveSettings() {
+	async saveSettings(): void {
 		await this.saveData(this.settings);
 	}
 }
 
-class CharacterBuilderModal extends Modal {
-	static char_name: string;
-	static settings: string;
-	static race: string;
-	static subrace: string;
-	static feature: string;
+const VIEW_TYPE_CHARACTER_BUILDER_FULL = "character-builder-full-view";
 
-	constructor(app: App) {
-		super(app);
+class CharacterBuilderFullView extends ItemView {
+	char_name: string;
+	settings: string;
+	race: string;
+	subrace: string;
+	feature: string;
+	maxArmor: number = 2;
+	initialTalentCount: number;
+
+	constructor(leaf: WorkspaceLeaf) {
+	  super(leaf);
 	}
 
-	onOpen() {
+	getViewType(): string {
+		return VIEW_TYPE_CHARACTER_BUILDER_FULL;
+	}
+
+	getDisplayText(): string {
+		return "Créateur de personnage";
+	}
+
+	async onOpen(): void {
 		const {contentEl} = this;
 
-		contentEl.createEl("h2", { text: "Character creation" });
+		contentEl.createEl("h2", { text: "Création de personnage" });
 
 		new Setting(contentEl)
-			.setName("Character Name")
-			.addText(text => text.onChange(value => CharacterBuilderModal.char_name = value).setValue(CharacterBuilderModal.char_name));
+			.setName("Nom de personnage")
+			.addText(text => text.onChange(value => this.char_name = value).setValue(this.char_name));
 
 		const settingDropdown = new Setting(contentEl);
 
-		const raceGroup = this.group(contentEl, "Character's Race");
+		const raceGroup = this.group(contentEl, "Race du personnage");
 
 		const raceDropdown = new Setting(raceGroup);
 		const subraceDropdown = new Setting(raceGroup);
 		const featureDropdown = new Setting(raceGroup);
 
-		subraceDropdown.setName("Sub-Race")
+		subraceDropdown.setName("Sous race")
 			.addDropdown(dropdown => dropdown.onChange(value => {
-				CharacterBuilderModal.subrace = value;
+				this.subrace = value;
+				subraceDropdown.setDesc("");
+				MarkdownPreviewView.renderMarkdown(this.heading(`races/${this.settings}/content/${this.race}`, `races/${this.settings}/metadata/${this.race}`, value), subraceDropdown.descEl, this.race.path);
 			}).setDisabled(false));
-		featureDropdown.setName("Race Feature")
+		featureDropdown.setName("Bonus de race")
 			.addDropdown(dropdown => dropdown.onChange(value => {
-				CharacterBuilderModal.feature = value;
+				this.feature = value;
+				featureDropdown.setDesc("");
+				const content = CharacterBuilderCache.cache(`races/${this.settings}/content/${this.race}`);
+				MarkdownPreviewView.renderMarkdown(this.paragraphsOfHeading(`races/${this.settings}/metadata/${this.race}`, "BONUS RACIA").splice(1).map(e => content.substring(e.position.start.offset, e.position.end.offset)).filter(e => e.startsWith(`**${value}**`))[0], featureDropdown.descEl, this.race.path);
 			}).setDisabled(false));
 
 		raceDropdown.setName("Race")
 			.addDropdown(dropdown => dropdown.onChange(async value => {
-				CharacterBuilderModal.race = value;
-				const race = CharacterBuilderCache.cache(`races/${CharacterBuilderModal.settings}/metadata/${value}`);
+				this.race = value;
 
-				if(!CharacterBuilderCache.cache(`races/${CharacterBuilderModal.settings}/content/${value}`))
-					CharacterBuilderCache.cache(`races/${CharacterBuilderModal.settings}/content/${value}`, await this.app.vault.cachedRead(this.app.vault.getAbstractFileByPath(race.path)));
+				this.subrace = "";
+				this.feature = "";
 
-				const content = CharacterBuilderCache.cache(`races/${CharacterBuilderModal.settings}/content/${value}`);
+				subraceDropdown.setDesc("");
+				featureDropdown.setDesc("");
 
-				(new MarkdownPreviewView(raceDropdown.descEl)).renderMarkdown(this.heading(`races/${CharacterBuilderModal.settings}/content/${value}`, `races/${CharacterBuilderModal.settings}/metadata/${value}`, "TRAITS"), raceDropdown.descEl, race.path);
-				//raceDropdown.setDesc();
+				const race = CharacterBuilderCache.cache(`races/${this.settings}/metadata/${value}`);
 
-				this.dropdown(subraceDropdown, race.headings.filter(e => e.level === 3).map(e => e.heading), CharacterBuilderModal.subrace);
-				this.dropdown(featureDropdown, race.listItems.map(e => content.substring(e.position.start.offset, e.position.end.offset)), CharacterBuilderModal.feature);
+				if(!CharacterBuilderCache.cache(`races/${this.settings}/content/${value}`))
+					CharacterBuilderCache.cache(`races/${this.settings}/content/${value}`, await this.app.vault.cachedRead(this.app.vault.getAbstractFileByPath(race.path)));
+
+				const content = CharacterBuilderCache.cache(`races/${this.settings}/content/${value}`);
+
+				raceDropdown.setDesc("");
+
+				const sections = this.paragraphsOfHeading(`races/${this.settings}/metadata/${value}`, "BONUS RACIA").splice(1);
+
+				console.log(sections.map(e => content.substring(e.position.start.offset, e.position.end.offset)));
+				console.log(sections.map(e => /\*\*(.+)\*\*/.exec(content.substring(e.position.start.offset, e.position.end.offset))));
+
+				this.dropdown(subraceDropdown, race.headings.filter(e => e.level === 3).map(e => e.heading), this.subrace);
+				this.dropdown(featureDropdown, sections.map(e => /\*\*(.+)\*\*/.exec(content.substring(e.position.start.offset, e.position.end.offset))).filter(e => e !== null && e[1]).map(e => e[1]), this.feature);
 			}).setDisabled(false));
 
-		settingDropdown.setName("RPG Settings")
+		settingDropdown.setName("Univers")
 			.addDropdown(dropdown => {
 				Object.keys(CharacterBuilderCache.cache("races")).forEach(e => dropdown.addOption(e, e))
 							dropdown.onChange(value => {
-								CharacterBuilderModal.settings = value;
-								this.dropdown(raceDropdown, CharacterBuilderCache.cache(`races/${value}/names`), CharacterBuilderModal.race);
-							}).setValue(CharacterBuilderModal.settings);
-				if(!!CharacterBuilderModal.settings) dropdown.changeCallback(CharacterBuilderModal.settings); });
+
+								this.race = "";
+								this.subrace = "";
+								this.feature = "";
+
+								raceDropdown.setDesc("");
+								subraceDropdown.setDesc("");
+								featureDropdown.setDesc("");
+
+								this.settings = value;
+								this.dropdown(raceDropdown, CharacterBuilderCache.cache(`races/${value}/names`), this.race);
+							}).setValue(this.settings);
+				if(!!this.settings) dropdown.changeCallback(this.settings); });
+
+		const armorSlider = new Setting(contentEl);
+
+		armorSlider.setName(`Armure max`).setDesc(`L'armure maximum determine le nombre de talents disponibles au niveau 1.`)
+			.addSlider(slider => slider.setLimits(2, 6, 2).onChange(value => {
+				this.maxArmor = value;
+				this.initialTalentCount = 6 - value / 2;
+
+				armorSlider.setName(`Armure max (${this.maxArmor})`).setDesc(`L'armure maximum determine le nombre de talents disponibles au niveau 1 (${this.initialTalentCount}).`);
+			}).setValue(this.maxArmor));
 
 		new Setting(contentEl)
-			.addButton(btn => btn.setButtonText('Create')/*.setIcon('plus-circle')*/.onClick(console.log));
+			.addButton(btn => btn.setButtonText('Créer').onClick(console.log));
 	}
 
 	group(elmt: HTMLElement, title: string): HTMLDivElement
@@ -196,7 +252,7 @@ class CharacterBuilderModal extends Modal {
 		return container.createDiv({cls: "character-builder-group-content"});
 	}
 
-	dropdown(elmt: Setting, options: string[], value: string)
+	dropdown(elmt: Setting, options: string[], value: string): void
 	{
 		let i, dropdown = elmt.components[0], L = elmt.components[0].selectEl.options.length - 1;
 		for(i = L; i >= 0; i--)
@@ -233,6 +289,38 @@ class CharacterBuilderModal extends Modal {
 
 		return content.substring(metadata.headings[idx].position.end.offset, metadata.headings.length - 1 === idx ? content.length : metadata.headings[idx + 1].position.start.offset);
 	}
+
+	paragraphsOfHeading(metadataPath: string, heading: string, includeHeading: boolean = false): SectionCache[]
+	{
+		const metadata = CharacterBuilderCache.cache(metadataPath), result = [];
+
+		const head = metadata.headings.find(e => e.heading.includes(heading))?.position.end.offset;
+		if(head === undefined)
+			return result;
+
+		for(let i = 0; i < metadata.sections.length; i++)
+		{
+			const sec = metadata.sections[i];
+			if(includeHeading && head === sec.position.end.offset)
+				result.push(sec);
+
+			if(head < sec.position.start.offset && sec.type === "heading")
+				break;
+
+			if(head < sec.position.start.offset)
+				result.push(sec);
+		}
+
+		for(let i = result.length - 1; i > 0; i--)
+		{
+		    if(result[i].type !== "paragraph")
+		    {
+		        result[i - 1].position.end = result[i].position.end;
+		        result.splice(i, 1);
+		    }
+		}
+		return result;
+	}
 }
 
 class CharacterBuilderSettingTab extends PluginSettingTab {
@@ -248,16 +336,44 @@ class CharacterBuilderSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
-		containerEl.createEl('h2', {text: 'Settings for character builder.'});
+		containerEl.createEl('h2', {text: 'Paramètres du créateur de personnage.'});
 
 		new Setting(containerEl)
-			.setName('Character Folder')
-			.setDesc('Link to the character folder')
+			.setName('Dossier des personnages')
+			.setDesc('Lien vers le dossier des personnages')
 			.addText(text => text
 				.setValue(this.plugin.settings.folder)
 				.onChange(async (value) => {
 					this.plugin.settings.folder = value;
 					await this.plugin.saveSettings();
 				}));
+	}
+}
+
+class Component
+{
+	setting: Setting;
+
+	desc(md: string, path?: string): Component
+	{
+		MarkdownPreviewView.renderMarkdown(md, this.setting.descEl, path);
+		return this;
+	}
+	name(name: string): Component
+	{
+		this.setting.setName(name);
+		return this;
+	}
+	disable(state: boolean)
+	{
+		this.setting.setDisabled(state);
+	}
+	value(value: string|number)
+	{
+		this.setting.
+	}
+	change(cb: (value: string|number) => void)
+	{
+
 	}
 }
