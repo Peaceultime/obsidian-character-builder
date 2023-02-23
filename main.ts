@@ -102,7 +102,7 @@ export default class CharacterBuilder extends Plugin {
 			CharacterBuilderCache.cache(`races/${groups[i]}/content`, r.reduce((p, v) => { p[v.name] = v; return p; }, {}));
 		}
 
-		/*const talents = files.filter(e => e.path.includes("2. Talents")).map(this.getMetadata.bind(this));
+		/*const talents = files.filter(e => e.path.startsWith(this.settings.talents + "/")).map(this.getTalentContent.bind(this));
 		CharacterBuilderCache.cache("talents/metadata", talents.reduce((p, v) => { p[v.name] = v; return p; }, {}));*/
 	}
 
@@ -117,8 +117,21 @@ export default class CharacterBuilder extends Plugin {
         const subraces = metadata.headings.slice(0, metadata.headings.findIndex(e => e.heading.startsWith("BONUS RACIA"))).map((e, i) => i).slice(3).map(e => metadata.headings[e].heading).reduce((p, v) => {
         	p[v] = this.contentOfHeading(metadata, content, v, true); return p;
         }, {});
+        const idx = metadata.headings.findIndex(e => e.heading.startsWith("BONUS RACIA"));
+        const start = metadata.headings[idx].position.end.offset, end = idx === metadata.headings.length - 1 ? content.length - 1 : metadata.headings[idx + 1].position.start.offset;
+        const features = metadata.sections.reduce((p, v) => { 
+        	if(v.position.start.offset >= start && v.position.end.offset <= end) 
+        	{
+        		const paragraph = content.substring(v.position.start.offset, v.position.end.offset);
+        		const match = /\*\*(.+)\*\*/g.exec(paragraph);
+
+        		if(match)
+        			p[match[1].replace(/\*/g, "").replace(".", "")] = paragraph;
+        	}
+        	return p;
+        }, {});
         
-        return { subraces: subraces, content: desc, name: file.basename, parent: file.parent.name, path: file.path };
+        return { features: features, subraces: subraces, content: desc, name: file.basename, parent: file.parent.name, path: file.path };
 	}
 
 	async loadSettings(): void {
@@ -187,7 +200,7 @@ class CharacterBuilderFullView extends ItemView {
 		const raceGroup = this.group(contentEl, "Race du personnage");
 		const raceDropdown = new Dropdown(raceGroup, "Race", `races/{setting}/content`, this);
 		const subraceDropdown = new Dropdown(raceGroup, "Sous-race", `races/{setting}/content/{race}/subraces`, this);
-		const featureDropdown = new Dropdown(raceGroup, "Bonus racial", `races/{setting}/content/{race}/feature`, this);
+		const featureDropdown = new Dropdown(raceGroup, "Bonus racial", `races/{setting}/content/{race}/features`, this);
 
 		settingDropdown.onChange(value => {
 			this.setting = value;
@@ -195,28 +208,29 @@ class CharacterBuilderFullView extends ItemView {
 			subraceDropdown.update();
 			featureDropdown.update();
 		});
-
 		raceDropdown.onChange(value => {
 			this.race = value;
 			subraceDropdown.update();
 			featureDropdown.update();
 		});
-
 		subraceDropdown.onChange(value => this.subrace = value);
 		featureDropdown.onChange(value => this.feature = value);
-		
+
 		const armorSlider = new Setting(contentEl);
 
 		armorSlider.setName(`Armure max`).setDesc(`L'armure maximum determine le nombre de talents disponibles au niveau 1.`)
-			.addSlider(slider => slider.setLimits(2, 6, 2).onChange(value => {
-				this.maxArmor = value;
-				this.initialTalentCount = 6 - value / 2;
+		.addSlider(slider => slider.setLimits(2, 6, 2).onChange(value => {
+			this.maxArmor = value;
+			this.initialTalentCount = 6 - value / 2;
 
-				armorSlider.setName(`Armure max (${this.maxArmor})`).setDesc(`L'armure maximum determine le nombre de talents disponibles au niveau 1 (${this.initialTalentCount}).`);
-			}).setValue(this.maxArmor));
+			armorSlider.setName(`Armure max (${this.maxArmor})`).setDesc(`L'armure maximum determine le nombre de talents disponibles au niveau 1 (${this.initialTalentCount}).`);
+		}).setValue(this.maxArmor));
 
-		new Setting(contentEl)
-			.addButton(btn => btn.setButtonText('Créer').onClick(console.log));
+		new Setting(contentEl).addButton(btn => btn.setButtonText('Créer').onClick(console.log));
+	}
+
+	async onClose(): void {
+
 	}
 
 	group(elmt: HTMLElement, title: string): HTMLDivElement
@@ -244,6 +258,7 @@ class CharacterBuilderFullView extends ItemView {
 
 class CharacterBuilderSettingTab extends PluginSettingTab {
 	plugin: CharacterBuilder;
+	dirty: boolean = false;
 
 	constructor(app: App, plugin: CharacterBuilder) {
 		super(app, plugin);
@@ -259,26 +274,31 @@ class CharacterBuilderSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl).setName('Dossier des personnages').addText(text => text.setValue(this.plugin.settings.folder).onChange(async (value) => {
 			this.plugin.settings.folder = value;
+			this.dirty = true;
 		}));
 
 		new Setting(containerEl).setName('Dossier des races').addText(text => text.setValue(this.plugin.settings.races).onChange(async (value) => { 
 			this.plugin.settings.races = value;
+			this.dirty = true;
 		}));
 
 		new Setting(containerEl).setName('Dossier des talents').addText(text => text.setValue(this.plugin.settings.talents).onChange(async (value) => {
 			this.plugin.settings.talents = value;
+			this.dirty = true;
 		}));
 	}
 
 	hide()
 	{
-		await this.plugin.saveSettings();
+		if(this.dirty)
+			this.plugin.saveSettings();
+
+		this.dirty = false;
 		super.hide();
 	}
 }
 
 class Dropdown {
-	static regex: RegExp = /{(.+?)}/g;
 	setting: Setting;
 	dropdown: DropdownComponent;
 	src: string;
@@ -315,7 +335,7 @@ class Dropdown {
 			this.dropdown.selectEl.remove(i);
 
 		let match, target = this.src;
-		while((match = Dropdown.regex.exec(target)) !== null)
+		while((match = /{(.+?)}/g.exec(target)) !== null)
 			target = target.replace(match[0], this.dataSource[match[1]]);
 		this.cache = CharacterBuilderCache.cache(target);
 
