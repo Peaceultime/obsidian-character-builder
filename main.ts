@@ -1,11 +1,15 @@
 import { App, Editor, MarkdownPreviewView, ItemView, WorkspaceLeaf, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
 
 interface CharacterBuilderSettings {
-	folder: string;
+	characters: string;
+	races: string;
+	talents: string;
 }
 
 const DEFAULT_SETTINGS: CharacterBuilderSettings = {
-	folder: 'Characters'
+	characters: '99. Personnages',
+	races: '3. Races/Liste des races',
+	talents: '2. Classes/2. Talents'
 }
 
 class CharacterBuilderCache {
@@ -60,13 +64,13 @@ export default class CharacterBuilder extends Plugin {
 		);
 
 		// This creates an icon in the left ribbon.
-		this.addRibbonIcon('calculator', 'Create new character', async (evt: MouseEvent) => {
+		this.addRibbonIcon('calculator', 'Créer un nouveau personnage', async (evt: MouseEvent) => {
 			const leaf = this.app.workspace.getLeaf();
 			await leaf.setViewState({ type: VIEW_TYPE_CHARACTER_BUILDER_FULL, active: true, });
 			this.app.workspace.revealLeaf(leaf);
 		});
 
-		this.addRibbonIcon('dice', 'Create character from template', (evt: MouseEvent) => {
+		this.addRibbonIcon('dice', 'Créer un nouveau personnage depuis les modèles', (evt: MouseEvent) => {
 			// Called when the user clicks the icon.
 			new CharacterBuilderModal(this.app).open();
 		});
@@ -76,6 +80,8 @@ export default class CharacterBuilder extends Plugin {
 
 		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
 		//this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
+
+		window.CharacterBuilderCache = CharacterBuilderCache; //DEBUG
 	}
 
 	async onunload() {
@@ -83,28 +89,36 @@ export default class CharacterBuilder extends Plugin {
 	}
 
 	async initCache(): void {
-		window.CharacterBuilderCache = CharacterBuilderCache; //DEBUG
-
 		const files = this.app.vault.getMarkdownFiles();
 
-		const races = files.filter(e => e.path.includes("Liste des Races")).map(this.getMetadata.bind(this));
+		const races = (await Promise.all(files.filter(e => e.path.startsWith(this.settings.races + "/")).map(this.getRaceContent.bind(this)))).filter(e => !!e && !!e.content);
 
 		const groups = races.reduce((p, v) => { if(!p.includes(v.parent)) p.push(v.parent); return p; }, []);
 
 		for(let i = 0; i < groups.length; i++)
 		{
 			const r = races.filter(e => e.parent === groups[i]);
-			CharacterBuilderCache.cache(`races/${groups[i]}/metadata`, r.reduce((p, v) => { p[v.name] = v; return p; }, {}));
-			CharacterBuilderCache.cache(`races/${groups[i]}/names`, r.map(e => e.name));
+
+			CharacterBuilderCache.cache(`races/${groups[i]}/content`, r.reduce((p, v) => { p[v.name] = v; return p; }, {}));
 		}
 
-		const talents = files.filter(e => e.path.includes("2. Talents")).map(this.getMetadata.bind(this));
-		CharacterBuilderCache.cache("talents/metadata", talents.reduce((p, v) => { p[v.name] = v; return p; }, {}));
-		CharacterBuilderCache.cache("talents/names", talents.map(e => e.name));
+		/*const talents = files.filter(e => e.path.includes("2. Talents")).map(this.getMetadata.bind(this));
+		CharacterBuilderCache.cache("talents/metadata", talents.reduce((p, v) => { p[v.name] = v; return p; }, {}));*/
 	}
 
-	getMetadata(file: TFile): any {
-		return {...this.app.metadataCache.getFileCache(file), name: file.basename, parent: file.parent.name, path: file.path};
+	async getRaceContent(file: TFile): any {
+		const metadata = app.metadataCache.getFileCache(file);
+
+        if(!metadata.hasOwnProperty("headings") || !metadata.hasOwnProperty("sections"))
+            return;
+        
+        const content = await this.app.vault.cachedRead(this.app.vault.getAbstractFileByPath(file.path));
+        const desc = content.substring(0, metadata.headings[2].position.start.offset - 1);
+        const subraces = metadata.headings.slice(0, metadata.headings.findIndex(e => e.heading.startsWith("BONUS RACIA"))).map((e, i) => i).slice(3).map(e => metadata.headings[e].heading).reduce((p, v) => {
+        	p[v] = this.contentOfHeading(metadata, content, v, true); return p;
+        }, {});
+        
+        return { subraces: subraces, content: desc, name: file.basename, parent: file.parent.name, path: file.path };
 	}
 
 	async loadSettings(): void {
@@ -113,6 +127,25 @@ export default class CharacterBuilder extends Plugin {
 
 	async saveSettings(): void {
 		await this.saveData(this.settings);
+		await this.initCache();
+	}
+
+	contentOfHeading(metadata: any, content: string, heading: string, includeHeading: boolean = false)
+	{
+		const head = metadata.headings.find(e => e.heading === heading);
+		const start = includeHeading ? head.position.start.offset : head.position.end.offset;
+		let end;
+		
+		for(let i = 0; i < metadata.sections.length; i++)
+		{
+			const sec = metadata.sections[i];
+			if(start < sec.position.start.offset && sec.type === "heading")
+				break;
+
+			if(start < sec.position.start.offset)
+				end = sec.position.end.offset;
+		}
+		return content.substring(start, end);
 	}
 }
 
@@ -142,80 +175,36 @@ class CharacterBuilderFullView extends ItemView {
 	async onOpen(): void {
 		const {contentEl} = this;
 
+		contentEl.empty();
+
 		contentEl.createEl("h2", { text: "Création de personnage" });
 
 		new Setting(contentEl)
 			.setName("Nom de personnage")
 			.addText(text => text.onChange(value => this.char_name = value).setValue(this.char_name));
 
-		const settingDropdown = new Setting(contentEl);
-
+		const settingDropdown = new Dropdown(contentEl, "Univers", `races`, this, false);
 		const raceGroup = this.group(contentEl, "Race du personnage");
+		const raceDropdown = new Dropdown(raceGroup, "Race", `races/{setting}/content`, this);
+		const subraceDropdown = new Dropdown(raceGroup, "Sous-race", `races/{setting}/content/{race}/subraces`, this);
+		const featureDropdown = new Dropdown(raceGroup, "Bonus racial", `races/{setting}/content/{race}/feature`, this);
 
-		const raceDropdown = new Setting(raceGroup);
-		const subraceDropdown = new Setting(raceGroup);
-		const featureDropdown = new Setting(raceGroup);
+		settingDropdown.onChange(value => {
+			this.setting = value;
+			raceDropdown.update();
+			subraceDropdown.update();
+			featureDropdown.update();
+		});
 
-		subraceDropdown.setName("Sous race")
-			.addDropdown(dropdown => dropdown.onChange(value => {
-				this.subrace = value;
-				subraceDropdown.setDesc("");
-				MarkdownPreviewView.renderMarkdown(this.heading(`races/${this.settings}/content/${this.race}`, `races/${this.settings}/metadata/${this.race}`, value), subraceDropdown.descEl, this.race.path);
-			}).setDisabled(false));
-		featureDropdown.setName("Bonus de race")
-			.addDropdown(dropdown => dropdown.onChange(value => {
-				this.feature = value;
-				featureDropdown.setDesc("");
-				const content = CharacterBuilderCache.cache(`races/${this.settings}/content/${this.race}`);
-				MarkdownPreviewView.renderMarkdown(this.paragraphsOfHeading(`races/${this.settings}/metadata/${this.race}`, "BONUS RACIA").splice(1).map(e => content.substring(e.position.start.offset, e.position.end.offset)).filter(e => e.startsWith(`**${value}**`))[0], featureDropdown.descEl, this.race.path);
-			}).setDisabled(false));
+		raceDropdown.onChange(value => {
+			this.race = value;
+			subraceDropdown.update();
+			featureDropdown.update();
+		});
 
-		raceDropdown.setName("Race")
-			.addDropdown(dropdown => dropdown.onChange(async value => {
-				this.race = value;
-
-				this.subrace = "";
-				this.feature = "";
-
-				subraceDropdown.setDesc("");
-				featureDropdown.setDesc("");
-
-				const race = CharacterBuilderCache.cache(`races/${this.settings}/metadata/${value}`);
-
-				if(!CharacterBuilderCache.cache(`races/${this.settings}/content/${value}`))
-					CharacterBuilderCache.cache(`races/${this.settings}/content/${value}`, await this.app.vault.cachedRead(this.app.vault.getAbstractFileByPath(race.path)));
-
-				const content = CharacterBuilderCache.cache(`races/${this.settings}/content/${value}`);
-
-				raceDropdown.setDesc("");
-
-				const sections = this.paragraphsOfHeading(`races/${this.settings}/metadata/${value}`, "BONUS RACIA").splice(1);
-
-				console.log(sections.map(e => content.substring(e.position.start.offset, e.position.end.offset)));
-				console.log(sections.map(e => /\*\*(.+)\*\*/.exec(content.substring(e.position.start.offset, e.position.end.offset))));
-
-				this.dropdown(subraceDropdown, race.headings.filter(e => e.level === 3).map(e => e.heading), this.subrace);
-				this.dropdown(featureDropdown, sections.map(e => /\*\*(.+)\*\*/.exec(content.substring(e.position.start.offset, e.position.end.offset))).filter(e => e !== null && e[1]).map(e => e[1]), this.feature);
-			}).setDisabled(false));
-
-		settingDropdown.setName("Univers")
-			.addDropdown(dropdown => {
-				Object.keys(CharacterBuilderCache.cache("races")).forEach(e => dropdown.addOption(e, e))
-							dropdown.onChange(value => {
-
-								this.race = "";
-								this.subrace = "";
-								this.feature = "";
-
-								raceDropdown.setDesc("");
-								subraceDropdown.setDesc("");
-								featureDropdown.setDesc("");
-
-								this.settings = value;
-								this.dropdown(raceDropdown, CharacterBuilderCache.cache(`races/${value}/names`), this.race);
-							}).setValue(this.settings);
-				if(!!this.settings) dropdown.changeCallback(this.settings); });
-
+		subraceDropdown.onChange(value => this.subrace = value);
+		featureDropdown.onChange(value => this.feature = value);
+		
 		const armorSlider = new Setting(contentEl);
 
 		armorSlider.setName(`Armure max`).setDesc(`L'armure maximum determine le nombre de talents disponibles au niveau 1.`)
@@ -251,76 +240,6 @@ class CharacterBuilderFullView extends ItemView {
 		});
 		return container.createDiv({cls: "character-builder-group-content"});
 	}
-
-	dropdown(elmt: Setting, options: string[], value: string): void
-	{
-		let i, dropdown = elmt.components[0], L = elmt.components[0].selectEl.options.length - 1;
-		for(i = L; i >= 0; i--)
-			dropdown.selectEl.remove(i);
-
-		if(!options || !Array.isArray(options))
-		{
-			dropdown.setDisabled(true);
-			return;
-		}
-		else
-		{
-			dropdown.setDisabled(false);
-		}
-
-		for(i = 0; i < options.length; i++)
-			dropdown.addOption(options[i], options[i]);
-
-		dropdown.setValue(value);
-		if(!!value)
-		{
-			dropdown.changeCallback(value);
-		}
-	}
-
-	heading(contentPath: string, metadataPath: string, heading: string): string
-	{
-		const content = CharacterBuilderCache.cache(contentPath);
-		const metadata = CharacterBuilderCache.cache(metadataPath);
-
-		const idx = metadata.headings.findIndex(e => e.heading.includes(heading));
-		if(idx === -1)
-			return "";
-
-		return content.substring(metadata.headings[idx].position.end.offset, metadata.headings.length - 1 === idx ? content.length : metadata.headings[idx + 1].position.start.offset);
-	}
-
-	paragraphsOfHeading(metadataPath: string, heading: string, includeHeading: boolean = false): SectionCache[]
-	{
-		const metadata = CharacterBuilderCache.cache(metadataPath), result = [];
-
-		const head = metadata.headings.find(e => e.heading.includes(heading))?.position.end.offset;
-		if(head === undefined)
-			return result;
-
-		for(let i = 0; i < metadata.sections.length; i++)
-		{
-			const sec = metadata.sections[i];
-			if(includeHeading && head === sec.position.end.offset)
-				result.push(sec);
-
-			if(head < sec.position.start.offset && sec.type === "heading")
-				break;
-
-			if(head < sec.position.start.offset)
-				result.push(sec);
-		}
-
-		for(let i = result.length - 1; i > 0; i--)
-		{
-		    if(result[i].type !== "paragraph")
-		    {
-		        result[i - 1].position.end = result[i].position.end;
-		        result.splice(i, 1);
-		    }
-		}
-		return result;
-	}
 }
 
 class CharacterBuilderSettingTab extends PluginSettingTab {
@@ -338,42 +257,105 @@ class CharacterBuilderSettingTab extends PluginSettingTab {
 
 		containerEl.createEl('h2', {text: 'Paramètres du créateur de personnage.'});
 
-		new Setting(containerEl)
-			.setName('Dossier des personnages')
-			.setDesc('Lien vers le dossier des personnages')
-			.addText(text => text
-				.setValue(this.plugin.settings.folder)
-				.onChange(async (value) => {
-					this.plugin.settings.folder = value;
-					await this.plugin.saveSettings();
-				}));
+		new Setting(containerEl).setName('Dossier des personnages').addText(text => text.setValue(this.plugin.settings.folder).onChange(async (value) => {
+			this.plugin.settings.folder = value;
+		}));
+
+		new Setting(containerEl).setName('Dossier des races').addText(text => text.setValue(this.plugin.settings.races).onChange(async (value) => { 
+			this.plugin.settings.races = value;
+		}));
+
+		new Setting(containerEl).setName('Dossier des talents').addText(text => text.setValue(this.plugin.settings.talents).onChange(async (value) => {
+			this.plugin.settings.talents = value;
+		}));
+	}
+
+	hide()
+	{
+		await this.plugin.saveSettings();
+		super.hide();
 	}
 }
 
-class Component
-{
+class Dropdown {
+	static regex: RegExp = /{(.+?)}/g;
 	setting: Setting;
-
-	desc(md: string, path?: string): Component
+	dropdown: DropdownComponent;
+	src: string;
+	dataSource: any;
+	cache: any;
+	hasDynamicDescription: boolean;
+	constructor(parent: HTMLElement, name: string, src: string, dataSource: any, hasDynamicDescription: boolean = true)
 	{
-		MarkdownPreviewView.renderMarkdown(md, this.setting.descEl, path);
+		this.setting = new Setting(parent).setName(name).addDropdown(drop => this.dropdown = drop);
+		this.hasDynamicDescription = hasDynamicDescription;
+		this.dataSource = dataSource;
+		this.onChange(value => {}).source(src);
+	}
+	value(value: string): Dropdown
+	{
+		this.dropdown.setValue(value);
+		this.setting.setDesc("");
+		this.dropdown.changeCallback(value);
+
 		return this;
 	}
-	name(name: string): Component
+	source(src: string): Dropdown
 	{
-		this.setting.setName(name);
+		if(src === this.src)
+			return this;
+
+		this.src = src;
+		return this.update();
+	}
+	update(): Dropdown
+	{
+		let i, L = this.dropdown.selectEl.options.length - 1;
+		for(i = L; i >= 0; i--)
+			this.dropdown.selectEl.remove(i);
+
+		let match, target = this.src;
+		while((match = Dropdown.regex.exec(target)) !== null)
+			target = target.replace(match[0], this.dataSource[match[1]]);
+		this.cache = CharacterBuilderCache.cache(target);
+
+		if(!this.src || !this.cache)
+		{
+			this.value("");
+			this.dropdown.setDisabled(true);
+			return this;
+		}
+		else
+		{
+			this.dropdown.setDisabled(false);
+		}
+
+		const keys = Object.keys(this.cache);
+
+		for(i = 0; i < keys.length; i++)
+			this.dropdown.addOption(keys[i], keys[i]);
+
+		return this.value("");
+	}
+	onChange(cb): Dropdown
+	{
+		this.dropdown.onChange(value => {
+			if(this.hasDynamicDescription)
+				this._changeDesc(value);
+
+			cb(value);
+		});
+
 		return this;
 	}
-	disable(state: boolean)
+	private _changeDesc(value): void
 	{
-		this.setting.setDisabled(state);
-	}
-	value(value: string|number)
-	{
-		this.setting.
-	}
-	change(cb: (value: string|number) => void)
-	{
-
+		this.setting.setDesc("");
+		if(value === "")
+			return;
+		else if(this.cache[value].hasOwnProperty("content"))
+			MarkdownPreviewView.renderMarkdown(this.cache[value].content, this.setting.descEl);
+		else
+			MarkdownPreviewView.renderMarkdown(this.cache[value], this.setting.descEl);
 	}
 }
