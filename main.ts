@@ -1,16 +1,50 @@
-import { App, Editor, MarkdownPreviewView, ItemView, WorkspaceLeaf, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { App, Editor, MarkdownPreviewView, ItemView, WorkspaceLeaf, Modal, Notice, Plugin, PluginSettingTab, Setting, TextComponent } from 'obsidian';
 
 interface CharacterBuilderSettings {
-	characters: string;
-	races: string;
-	talents: string;
+	charactersFolder: string;
+	racesFolder: string;
+	talentsFolder: string;
+	maxStat: number;
+	maxInitialStat: number;
+	minStat: number;
+	statAmount: number;
 }
+interface Substats {
+	[name: string]: Stat;
+}
+const Stat = {
+	initial: 0,
+	bonus: 0,
+	levels: 0,
+} as const;
+const StatBlock = {
+	strength: {...Stat},
+	dexterity: {...Stat},
+	constitution: {...Stat},
+	intelligence: {...Stat},
+	perception: {...Stat},
+	charisma: {...Stat},
+	will: {...Stat},
+} as const;
+const StatBlockNames = {
+	strength: "Force",
+	dexterity: "Dextérité",
+	constitution: "Constitution",
+	intelligence: "Intelligence",
+	perception: "Perception",
+	charisma: "Charisme",
+	will: "Volonté",
+} as const;
 
 const DEFAULT_SETTINGS: CharacterBuilderSettings = {
-	characters: '99. Personnages',
-	races: '3. Races/Liste des races',
-	talents: '2. Classes/2. Talents'
-}
+	charactersFolder: '99. Personnages',
+	racesFolder: '3. Races/Liste des Races',
+	talentsFolder: '2. Classes/2. Talents',
+	maxStat: 60,
+	maxInitialStat: 45,
+	minStat: 15,
+	statAmount: 245,
+};
 
 class CharacterBuilderCache {
 	static _cache = {};
@@ -60,10 +94,9 @@ export default class CharacterBuilder extends Plugin {
 
 		this.registerView(
 			VIEW_TYPE_CHARACTER_BUILDER_FULL,
-			(leaf) => new CharacterBuilderFullView(leaf),
+			(leaf) => new CharacterBuilderFullView(leaf, this.settings),
 		);
 
-		// This creates an icon in the left ribbon.
 		this.addRibbonIcon('calculator', 'Créer un nouveau personnage', async (evt: MouseEvent) => {
 			const leaf = this.app.workspace.getLeaf();
 			await leaf.setViewState({ type: VIEW_TYPE_CHARACTER_BUILDER_FULL, active: true, });
@@ -71,11 +104,9 @@ export default class CharacterBuilder extends Plugin {
 		});
 
 		this.addRibbonIcon('dice', 'Créer un nouveau personnage depuis les modèles', (evt: MouseEvent) => {
-			// Called when the user clicks the icon.
 			new CharacterBuilderModal(this.app).open();
 		});
 
-		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new CharacterBuilderSettingTab(this.app, this));
 
 		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
@@ -91,7 +122,7 @@ export default class CharacterBuilder extends Plugin {
 	async initCache(): void {
 		const files = this.app.vault.getMarkdownFiles();
 
-		const races = (await Promise.all(files.filter(e => e.path.startsWith(this.settings.races + "/")).map(this.getRaceContent.bind(this)))).filter(e => !!e && !!e.content);
+		const races = (await Promise.all(files.filter(e => e.path.startsWith(this.settings.racesFolder + "/")).map(this.getRaceContent.bind(this)))).filter(e => !!e && !!e.content);
 
 		const groups = races.reduce((p, v) => { if(!p.includes(v.parent)) p.push(v.parent); return p; }, []);
 
@@ -102,8 +133,8 @@ export default class CharacterBuilder extends Plugin {
 			CharacterBuilderCache.cache(`races/${groups[i]}/content`, r.reduce((p, v) => { p[v.name] = v; return p; }, {}));
 		}
 
-		/*const talents = files.filter(e => e.path.startsWith(this.settings.talents + "/")).map(this.getTalentContent.bind(this));
-		CharacterBuilderCache.cache("talents/metadata", talents.reduce((p, v) => { p[v.name] = v; return p; }, {}));*/
+		const talents = files.filter(e => e.path.startsWith(this.settings.talentsFolder + "/")).map(this.getTalentContent.bind(this));
+		CharacterBuilderCache.cache("talents/metadata", talents.reduce((p, v) => { p[v.name] = v; return p; }, {}));
 	}
 
 	async getRaceContent(file: TFile): any {
@@ -113,7 +144,7 @@ export default class CharacterBuilder extends Plugin {
             return;
         
         const content = await this.app.vault.cachedRead(this.app.vault.getAbstractFileByPath(file.path));
-        const desc = content.substring(0, metadata.headings[2].position.start.offset - 1);
+        const desc = content.substring(metadata.headings[0].position.start.offset, metadata.headings[2].position.start.offset - 1);
         const subraces = metadata.headings.slice(0, metadata.headings.findIndex(e => e.heading.startsWith("BONUS RACIA"))).map((e, i) => i).slice(3).map(e => metadata.headings[e].heading).reduce((p, v) => {
         	p[v] = this.contentOfHeading(metadata, content, v, true); return p;
         }, {});
@@ -132,6 +163,10 @@ export default class CharacterBuilder extends Plugin {
         }, {});
         
         return { features: features, subraces: subraces, content: desc, name: file.basename, parent: file.parent.name, path: file.path };
+	}
+
+	async getTalentContent(file: TFile): any {
+
 	}
 
 	async loadSettings(): void {
@@ -165,16 +200,19 @@ export default class CharacterBuilder extends Plugin {
 const VIEW_TYPE_CHARACTER_BUILDER_FULL = "character-builder-full-view";
 
 class CharacterBuilderFullView extends ItemView {
-	char_name: string;
-	settings: string;
-	race: string;
-	subrace: string;
-	feature: string;
-	maxArmor: number = 2;
-	initialTalentCount: number;
+	settings: CharacterBuilderSettings;
 
-	constructor(leaf: WorkspaceLeaf) {
+	armor: Stat;
+	initialTalentCount: number = 5;
+	statBlock: StatBlock;
+
+	substats: Substats = {};
+
+	constructor(leaf: WorkspaceLeaf, settings: CharacterBuilderSettings) {
 	  super(leaf);
+	  this.settings = settings;
+	  this.armor = Object.assign({}, Stat, { maxLimit: 8 });
+	  this.statBlock = Object.assign({}, StatBlock);
 	}
 
 	getViewType(): string {
@@ -182,7 +220,7 @@ class CharacterBuilderFullView extends ItemView {
 	}
 
 	getDisplayText(): string {
-		return "Créateur de personnage";
+		return !!this.name ? `Création de ${this.name}` : `Création de personnage`;
 	}
 
 	async onOpen(): void {
@@ -192,39 +230,77 @@ class CharacterBuilderFullView extends ItemView {
 
 		contentEl.createEl("h2", { text: "Création de personnage" });
 
-		new Setting(contentEl)
-			.setName("Nom de personnage")
-			.addText(text => text.onChange(value => this.char_name = value).setValue(this.char_name));
+		new TextField(contentEl, "Nom de personnage").link(this, "name");
 
-		const settingDropdown = new Dropdown(contentEl, "Univers", `races`, this, false);
-		const raceGroup = this.group(contentEl, "Race du personnage");
-		const raceDropdown = new Dropdown(raceGroup, "Race", `races/{setting}/content`, this);
-		const subraceDropdown = new Dropdown(raceGroup, "Sous-race", `races/{setting}/content/{race}/subraces`, this);
-		const featureDropdown = new Dropdown(raceGroup, "Bonus racial", `races/{setting}/content/{race}/features`, this);
+		const settingDropdown = new Dropdown(contentEl, "Univers", false).source(this, `races`).link("setting");
+		const raceGroup = this.group(contentEl, "Race du personnage", true);
+		const raceDropdown = new Dropdown(raceGroup, "Race", this).source(this, `races/{setting}/content`).link("race");
+		const subraceDropdown = new Dropdown(raceGroup, "Sous-race").source(this, `races/{setting}/content/{race}/subraces`).link("subrace");
+		const featureDropdown = new Dropdown(raceGroup, "Bonus racial").source(this, `races/{setting}/content/{race}/features`).link("feature");
 
 		settingDropdown.onChange(value => {
-			this.setting = value;
 			raceDropdown.update();
 			subraceDropdown.update();
 			featureDropdown.update();
 		});
 		raceDropdown.onChange(value => {
-			this.race = value;
 			subraceDropdown.update();
 			featureDropdown.update();
 		});
-		subraceDropdown.onChange(value => this.subrace = value);
-		featureDropdown.onChange(value => this.feature = value);
 
 		const armorSlider = new Setting(contentEl);
 
 		armorSlider.setName(`Armure max`).setDesc(`L'armure maximum determine le nombre de talents disponibles au niveau 1.`)
 		.addSlider(slider => slider.setLimits(2, 6, 2).onChange(value => {
-			this.maxArmor = value;
+			this.armor.initialLimit = value;
 			this.initialTalentCount = 6 - value / 2;
 
-			armorSlider.setName(`Armure max (${this.maxArmor})`).setDesc(`L'armure maximum determine le nombre de talents disponibles au niveau 1 (${this.initialTalentCount}).`);
-		}).setValue(this.maxArmor));
+			armorSlider.setName(`Armure max (${this.armor.initialLimit})`).setDesc(`L'armure maximum determine le nombre de talents disponibles au niveau 1 (${this.initialTalentCount}).`);
+		}).setValue(2));
+
+		const statBlockContainer = contentEl.createDiv({ cls: "character-builder-statblock-container" });
+
+		const stats = Object.keys(this.statBlock);
+		let remaining = this.settings.statAmount;
+		this.table(statBlockContainer, Object.values(StatBlockNames), ["Statistique", "Bonus racial", "Réussite haute", "Réussite extrème"], (elmt, col, row) => {
+			const stat = this.statBlock[stats[col]];
+			switch(row)
+			{
+				case 0:
+					new HTMLStatElement(elmt, this.settings.minStat, this.settings.maxInitialStat).change(function(oldVal, newVal) {
+						if(oldVal === newVal)
+							return;
+
+						remaining += oldVal;
+
+						if(newVal > remaining)
+							newVal = remaining;
+
+						remaining -= remaining;
+
+						stat.initial = newVal;
+						this.value(newVal);
+					}).value(this.settings.minStat);
+					return;
+				case 1:
+					new HTMLStatElement(elmt, -6, 6, 3).change(function (oldVal, newVal) {
+						if(oldVal === newVal)
+							return;
+
+						stat.bonus = newVal;
+						this.value(newVal);
+					}).value(0);
+					return;
+				case 2:
+					elmt.createEl("i", { text: Math.floor((stat.initial + stat.bonus) / 2) });
+					return;
+				case 3:
+					elmt.createEl("i", { text: Math.floor((stat.initial + stat.bonus) / 5) });
+					return;
+				default:
+					return;
+			}
+		});
 
 		new Setting(contentEl).addButton(btn => btn.setButtonText('Créer').onClick(console.log));
 	}
@@ -233,7 +309,7 @@ class CharacterBuilderFullView extends ItemView {
 
 	}
 
-	group(elmt: HTMLElement, title: string): HTMLDivElement
+	group(elmt: HTMLElement, title: string, collapsed: boolean = false): HTMLDivElement
 	{
 		const container = elmt.createDiv({ cls: "character-builder-group-container" });
 		const titleDiv = container.createDiv({cls: "character-builder-group-collapsible"});
@@ -252,7 +328,33 @@ class CharacterBuilderFullView extends ItemView {
 		titleDiv.addEventListener("click", e => {
 			titleDiv.parentElement.classList.toggle("character-builder-group-collapsed");
 		});
+
+		if(collapsed)
+			titleDiv.parentElement.classList.toggle("character-builder-group-collapsed");
+
 		return container.createDiv({cls: "character-builder-group-content"});
+	}
+
+	table(elmt: HTMLElement, header: string[], descriptors: string[], cb: (elmt: HTMLElement, col: number, row: number) => void): HTMLElement
+	{
+		const table = elmt.createEl("table", { cls: "character-builder-table" });
+		const th = table.createEl("thead").createEl("tr", { cls: ["character-builder-table-row", "character-builder-table-head"] });
+		const tbody = table.createEl("tbody");
+
+		th.createEl("th", { cls: "character-builder-table-header" });
+
+		for(let j = 0; j < header.length; j++)
+			th.createEl("th", { cls: "character-builder-table-header", text: header[j] });
+
+		for(let i = 0; i < descriptors.length; i++)
+		{
+			const tr = tbody.createEl("tr", { cls: "character-builder-table-row" });
+			tr.createEl("td", { cls: "character-builder-table-descriptor", text: descriptors[i] });
+			for(let j = 0; j < header.length; j++)
+				cb(tr.createEl("td", { cls: "character-builder-table-cell" }), j, i);
+		}
+
+		return table;
 	}
 }
 
@@ -270,22 +372,18 @@ class CharacterBuilderSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
-		containerEl.createEl('h2', {text: 'Paramètres du créateur de personnage.'});
+		containerEl.createEl('h2', {text: 'Dossiers'});
 
-		new Setting(containerEl).setName('Dossier des personnages').addText(text => text.setValue(this.plugin.settings.folder).onChange(async (value) => {
-			this.plugin.settings.folder = value;
-			this.dirty = true;
-		}));
+		new TextField(containerEl, "Dossier des personnages", false).link(this.plugin.settings, "charactersFolder").onChange(value => this.dirty = true);
+		new TextField(containerEl, "Dossier des races", false).link(this.plugin.settings, "racesFolder").onChange(value => this.dirty = true);
+		new TextField(containerEl, "Dossier des talents", false).link(this.plugin.settings, "talentsFolder").onChange(value => this.dirty = true);
 
-		new Setting(containerEl).setName('Dossier des races').addText(text => text.setValue(this.plugin.settings.races).onChange(async (value) => { 
-			this.plugin.settings.races = value;
-			this.dirty = true;
-		}));
+		containerEl.createEl('h2', {text: 'Stats principales'});
 
-		new Setting(containerEl).setName('Dossier des talents').addText(text => text.setValue(this.plugin.settings.talents).onChange(async (value) => {
-			this.plugin.settings.talents = value;
-			this.dirty = true;
-		}));
+		new TextField(containerEl, "Max de point par stat", false).link(this.plugin.settings, "maxStat").onChange(value => this.dirty = true);
+		new TextField(containerEl, "Min de points par stat", false).link(this.plugin.settings, "minStat").onChange(value => this.dirty = true);
+		new TextField(containerEl, "Max de point par stat à la création", false).link(this.plugin.settings, "maxInitialStat").onChange(value => this.dirty = true);
+		new TextField(containerEl, "Points total disponnible à la création", false).link(this.plugin.settings, "statAmount").onChange(value => this.dirty = true);
 	}
 
 	hide()
@@ -298,19 +396,43 @@ class CharacterBuilderSettingTab extends PluginSettingTab {
 	}
 }
 
-class Dropdown {
+abstract class VisualComponent {
 	setting: Setting;
+	hasDynamicDescription: boolean;
+	constructor(parent: HTMLElement, name: string, hasDynamicDescription: boolean = true)
+	{
+		this.setting = new Setting(parent).setName(name);
+		this.hasDynamicDescription = hasDynamicDescription;
+		this.linkedProperty = undefined;
+		this.onChange(value => {});
+	}
+	disable(state: boolean): VisualComponent
+	{
+		this.setting.setDisabled(state);
+
+		return this;
+	}
+	desc(desc: string): VisualComponent
+	{
+		this.setting.setDesc(desc);
+
+		return this;
+	}
+
+	abstract value(value: string): VisualComponent;
+	abstract onChange(cb): VisualComponent;
+}
+class Dropdown extends VisualComponent {
 	dropdown: DropdownComponent;
 	src: string;
 	dataSource: any;
 	cache: any;
-	hasDynamicDescription: boolean;
-	constructor(parent: HTMLElement, name: string, src: string, dataSource: any, hasDynamicDescription: boolean = true)
+	linkedProperty?: string;
+	constructor(parent: HTMLElement, name: string, hasDynamicDescription: boolean = true)
 	{
-		this.setting = new Setting(parent).setName(name).addDropdown(drop => this.dropdown = drop);
-		this.hasDynamicDescription = hasDynamicDescription;
-		this.dataSource = dataSource;
-		this.onChange(value => {}).source(src);
+		super(parent, name, hasDynamicDescription);
+		this.setting.addDropdown(drop => this.dropdown = drop);
+		this.onChange(value => {});
 	}
 	value(value: string): Dropdown
 	{
@@ -320,12 +442,23 @@ class Dropdown {
 
 		return this;
 	}
-	source(src: string): Dropdown
+	link(propertyName?: string): Dropdown
+	{
+		this.linkedProperty = propertyName;
+
+		if(this.dataSource && this.linkedProperty)
+			this.value(this.dataSource[this.linkedProperty]);
+
+		return this;
+	}
+	source(dataSrc: any, src: string): Dropdown
 	{
 		if(src === this.src)
 			return this;
 
+		this.dataSource = dataSrc;
 		this.src = src;
+
 		return this.update();
 	}
 	update(): Dropdown
@@ -341,13 +474,11 @@ class Dropdown {
 
 		if(!this.src || !this.cache)
 		{
-			this.value("");
-			this.dropdown.setDisabled(true);
-			return this;
+			return this.value("").disable(true);
 		}
 		else
 		{
-			this.dropdown.setDisabled(false);
+			this.disable(false);
 		}
 
 		const keys = Object.keys(this.cache);
@@ -359,9 +490,12 @@ class Dropdown {
 	}
 	onChange(cb): Dropdown
 	{
-		this.dropdown.onChange(value => {
+		this.dropdown?.onChange(value => {
 			if(this.hasDynamicDescription)
 				this._changeDesc(value);
+
+			if(this.linkedProperty !== undefined)
+				this.dataSource[this.linkedProperty] = value;
 
 			cb(value);
 		});
@@ -371,11 +505,80 @@ class Dropdown {
 	private _changeDesc(value): void
 	{
 		this.setting.setDesc("");
-		if(value === "")
+		if(value === undefined || value === "")
 			return;
 		else if(this.cache[value].hasOwnProperty("content"))
 			MarkdownPreviewView.renderMarkdown(this.cache[value].content, this.setting.descEl);
 		else
 			MarkdownPreviewView.renderMarkdown(this.cache[value], this.setting.descEl);
+	}
+}
+class TextField extends VisualComponent {
+	text: TextComponent;
+	dataSource: any;
+	linkedProperty?: string;
+	constructor(parent: HTMLElement, name: string, hasDynamicDescription: boolean = true)
+	{
+		super(parent, name, hasDynamicDescription);
+		this.setting.addText(text => this.text = text);
+		this.onChange(value => {});
+	}
+	value(value: string): TextField
+	{
+		this.text.setValue(value);
+		this.setting.setDesc("");
+		this.text.changeCallback(value);
+
+		return this;
+	}
+	link(dataSrc: any, propertyName?: string): Dropdown
+	{
+		this.dataSource = dataSrc;
+		this.linkedProperty = propertyName;
+
+		if(this.dataSource && this.linkedProperty)
+			this.value(this.dataSource[this.linkedProperty]);
+
+		return this;
+	}
+	onChange(cb): TextField
+	{
+		this.text?.onChange(value => {
+			if(this.dataSource && this.linkedProperty)
+				this.dataSource[this.linkedProperty] = value;
+
+			cb(value);
+		});
+
+		return this;
+	}
+}
+class HTMLStatElement {
+	val: number;
+	component: HTMLElement;
+	cb: (oldVal: number, newVal: number) => void;
+	constructor(parent: HTMLElement, min?: number, max?: number, step: number = 1)
+	{
+		this.component = parent.createEl("input", { type: "number", cls: "character-builder-stat-input", attr: { min: min, max: max, step: step } });
+		this.component.addEventListener("change", this._onChange.bind(this));
+	}
+	value(value: number): HTMLStatElement
+	{
+		if(this.val != value)
+		{
+			this.component.valueAsNumber = value;
+			this.val = value;
+			this.component.dispatchEvent(new Event("change", { bubbles: true }));
+		}
+		return this;
+	}
+	change(cb: (oldVal: number, newVal: number) => void): HTMLStatElement
+	{
+		this.cb = cb;
+		return this;
+	}
+	private _onChange()
+	{
+		this.cb && this.cb(this.val, this.component.valueAsNumber);
 	}
 }
