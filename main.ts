@@ -1,9 +1,10 @@
-import { App, Editor, MarkdownPreviewView, ItemView, WorkspaceLeaf, Modal, Notice, Plugin, PluginSettingTab, Setting, TextComponent } from 'obsidian';
+import { App, Editor, MarkdownPreviewView, ItemView, WorkspaceLeaf, Modal, Notice, Plugin, PluginSettingTab, Setting, ValueComponent, TextComponent, DropdownComponent } from 'obsidian';
 
 interface CharacterBuilderSettings {
 	charactersFolder: string;
 	racesFolder: string;
 	talentsFolder: string;
+	characterTemplate: string,
 	maxStat: number;
 	maxInitialStat: number;
 	minStat: number;
@@ -40,6 +41,7 @@ const DEFAULT_SETTINGS: CharacterBuilderSettings = {
 	charactersFolder: '99. Personnages',
 	racesFolder: '3. Races/Liste des Races',
 	talentsFolder: '2. Classes/2. Talents',
+	characterTemplate: '99. Personnages/99. Template',
 	maxStat: 60,
 	maxInitialStat: 45,
 	minStat: 15,
@@ -225,20 +227,23 @@ class CharacterBuilderFullView extends ItemView {
 	}
 
 	async onOpen(): void {
+		let splitElmt;
 		const {contentEl} = this;
 
 		contentEl.empty();
 
 		contentEl.createEl("h2", { text: "Création de personnage" });
 
-		new TextField(contentEl, "Nom de personnage").link(this, "name");
 
-		const settingDropdown = new Dropdown(contentEl, "Univers", false).source(this, `races`).link("setting");
+		splitElmt = contentEl.createDiv({ cls: "character-builder-splitter-container" });
+		new TextField(splitElmt, "Nom de personnage").link(this, "name");
+		const settingDropdown = new Dropdown(splitElmt, "Univers", false).source(this, `races`).link(this, "setting");
+
 		const raceGroup = this.group(contentEl, "Race du personnage", true);
-		const raceDropdown = new Dropdown(raceGroup, "Race", this).source(this, `races/{setting}/content`).link("race");
-		const splitRaceContainer = raceGroup.createDiv({ cls: "character-builder-splitter-container" });
-		const subraceDropdown = new Dropdown(splitRaceContainer, "Sous-race").source(this, `races/{setting}/content/{race}/subraces`).link("subrace");
-		const featureDropdown = new Dropdown(splitRaceContainer, "Bonus racial").source(this, `races/{setting}/content/{race}/features`).link("feature");
+		const raceDropdown = new Dropdown(raceGroup, "Race").source(this, `races/{setting}/content`).link(this, "race");
+		splitElmt = raceGroup.createDiv({ cls: "character-builder-splitter-container" });
+		const subraceDropdown = new Dropdown(splitElmt, "Sous-race").source(this, `races/{setting}/content/{race}/subraces`).link(this, "subrace");
+		const featureDropdown = new Dropdown(splitElmt, "Bonus racial").source(this, `races/{setting}/content/{race}/features`).link(this, "feature");
 
 		settingDropdown.onChange(value => {
 			raceDropdown.update();
@@ -322,8 +327,8 @@ class CharacterBuilderFullView extends ItemView {
 		totalContainer.createEl("span", { text: 'Restant: ' });
 		totalElmt = totalContainer.createEl("strong", { text: this.remaining });
 
-		const splittedContainer = splitContainer.createDiv();
-		const armorSlider = new Setting(splittedContainer);
+		splitElmt = splitContainer.createDiv();
+		const armorSlider = new Setting(splitElmt);
 		let talentText;
 		armorSlider.setName(`Armure max`).setDesc(`L'armure maximum determine le nombre de talents disponibles au niveau 1.`)
 		.addSlider(slider => slider.setLimits(2, 6, 2).onChange(value => {
@@ -333,13 +338,34 @@ class CharacterBuilderFullView extends ItemView {
 			talentText?.setValue(6 - value / 2);
 			armorSlider.setName(`Armure max: ${this.armor.initialLimit}`)
 		}).setValue(2));
-		new Setting(splittedContainer).setName(`Talents au niveau 1`).addText(text => talentText = text.setValue(this.initialTalentCount)).setDisabled(true);
+		new Setting(splitElmt).setName(`Talents au niveau 1`).addText(text => talentText = text).setDisabled(true);
+		talentText.setValue(this.initialTalentCount);
 
-		new Setting(contentEl).addButton(btn => btn.setButtonText('Créer').onClick(console.log));
+		new Setting(contentEl).addButton(btn => btn.setButtonText('Créer').onClick(this.create));
 	}
 
 	async onClose(): void {
 
+	}
+
+	async create(): void {
+		const filepath = `${this.settings.charactersFolder}/${this.name}.md`;
+		let templateData;
+		try {
+			templateData = await this.app.vault.cachedRead(this.app.vault.getAbstractFileByPath(this.settings.characterTemplate));
+		} catch(e) {
+			new Notice("Le template est introuvable.");
+			return;
+		}
+		if(!await this.app.vault.adapter.exists(filepath))
+		{
+
+		}
+		else
+		{
+
+		}
+		//if(this.appthis.name)
 	}
 
 	group(elmt: HTMLElement, title: string, collapsed: boolean = false): HTMLDivElement
@@ -411,6 +437,11 @@ class CharacterBuilderSettingTab extends PluginSettingTab {
 		new TextField(containerEl, "Dossier des races", false).link(this.plugin.settings, "racesFolder").onChange(value => this.dirty = true);
 		new TextField(containerEl, "Dossier des talents", false).link(this.plugin.settings, "talentsFolder").onChange(value => this.dirty = true);
 
+
+		containerEl.createEl('h2', {text: 'Modèles'});
+
+		new TextField(containerEl, "Modèle de fiche", false).link(this.plugin.settings, "characterTemplate").onChange(value => this.dirty = true);
+
 		containerEl.createEl('h2', {text: 'Stats principales'});
 
 		new TextField(containerEl, "Max de point par stat", false).link(this.plugin.settings, "maxStat").onChange(value => this.dirty = true);
@@ -434,63 +465,68 @@ abstract class VisualComponent {
 	nameElmt: HTMLElement;
 	descElmt: HTMLElement;
 	compElmt: HTMLElement;
+	component: ValueComponent;
 	hasDynamicDescription: boolean;
+	linkSrc?: any;
+	linkedProperty?: string;
 	constructor(parent: HTMLElement, name: string, hasDynamicDescription: boolean = true)
 	{
 		this.setting = parent.createDiv({ cls: "character-builder-setting" });
 		const info = this.setting.createDiv({ cls: "character-builder-setting-info" });
 		this.nameElmt = info.createDiv({ text: name, cls: "character-builder-setting-name" });
-		this.compElmt = info.createDiv({ cls: "character-builder-setting-component" });
-		this.descElmt = this.settings.createDiv({ cls: "character-builder-setting-desc" });
+		this.compElmt = info.createDiv({ cls: "character-builder-setting-control" });
+		this.descElmt = this.setting.createDiv({ cls: "character-builder-setting-description" });
 		this.hasDynamicDescription = hasDynamicDescription;
 		this.linkedProperty = undefined;
-		this.onChange(value => {});
 	}
 	name(name: string): VisualComponent
 	{
-		this.nameElmt.textContent = name;
+		this.nameElmt.innerHTML = name;
 
 		return this;
 	}
 	desc(desc: string): VisualComponent
 	{
-		this.descElmt.textContent = desc;
+		this.descElmt.innerHTML = desc;
+
+		return this;
+	}
+	link(dataSrc: any, propertyName?: string): VisualComponent
+	{
+		this.linkSrc = dataSrc;
+		this.linkedProperty = propertyName;
+
+		if(this.linkSrc && this.linkedProperty)
+			this.value(this.linkSrc[this.linkedProperty]);
+
+		return this;
+	}
+	value(value: string): VisualComponent
+	{
+		this.descElmt.innerHTML = "";
+		this.component.setValue(value);
+		this.component.changeCallback(value);
+
+		return this;
+	}
+	disable(state: boolean): VisualComponent
+	{
+		this.component.setDisabled(state);
 
 		return this;
 	}
 
-	abstract disable(state: boolean): VisualComponent;
-	abstract value(value: string): VisualComponent;
 	abstract onChange(cb): VisualComponent;
 }
 class Dropdown extends VisualComponent {
-	dropdown: DropdownComponent;
 	src: string;
 	dataSource: any;
 	cache: any;
-	linkedProperty?: string;
 	constructor(parent: HTMLElement, name: string, hasDynamicDescription: boolean = true)
 	{
 		super(parent, name, hasDynamicDescription);
-		this.setting.addDropdown(drop => this.dropdown = drop);
+		this.component = new DropdownComponent(this.compElmt);
 		this.onChange(value => {});
-	}
-	value(value: string): Dropdown
-	{
-		this.dropdown.setValue(value);
-		this.setting.setDesc("");
-		this.dropdown.changeCallback(value);
-
-		return this;
-	}
-	link(propertyName?: string): Dropdown
-	{
-		this.linkedProperty = propertyName;
-
-		if(this.dataSource && this.linkedProperty)
-			this.value(this.dataSource[this.linkedProperty]);
-
-		return this;
 	}
 	source(dataSrc: any, src: string): Dropdown
 	{
@@ -504,9 +540,9 @@ class Dropdown extends VisualComponent {
 	}
 	update(): Dropdown
 	{
-		let i, L = this.dropdown.selectEl.options.length - 1;
+		let i, L = this.component.selectEl.options.length - 1;
 		for(i = L; i >= 0; i--)
-			this.dropdown.selectEl.remove(i);
+			this.component.selectEl.remove(i);
 
 		let match, target = this.src;
 		while((match = /{(.+?)}/g.exec(target)) !== null)
@@ -525,18 +561,18 @@ class Dropdown extends VisualComponent {
 		const keys = Object.keys(this.cache);
 
 		for(i = 0; i < keys.length; i++)
-			this.dropdown.addOption(keys[i], keys[i]);
+			this.component.addOption(keys[i], keys[i]);
 
 		return this.value("");
 	}
 	onChange(cb): Dropdown
 	{
-		this.dropdown?.onChange(value => {
+		this.component?.onChange(value => {
 			if(this.hasDynamicDescription)
 				this._changeDesc(value);
 
 			if(this.linkedProperty !== undefined)
-				this.dataSource[this.linkedProperty] = value;
+				this.linkSrc[this.linkedProperty] = value;
 
 			cb(value);
 		});
@@ -545,48 +581,27 @@ class Dropdown extends VisualComponent {
 	}
 	private _changeDesc(value): void
 	{
-		this.setting.setDesc("");
+		this.desc("");
 		if(value === undefined || value === "")
 			return;
 		else if(this.cache[value].hasOwnProperty("content"))
-			MarkdownPreviewView.renderMarkdown(this.cache[value].content, this.setting.descEl);
+			MarkdownPreviewView.renderMarkdown(this.cache[value].content, this.descElmt);
 		else
-			MarkdownPreviewView.renderMarkdown(this.cache[value], this.setting.descEl);
+			MarkdownPreviewView.renderMarkdown(this.cache[value], this.descElmt);
 	}
 }
 class TextField extends VisualComponent {
-	text: TextComponent;
-	dataSource: any;
-	linkedProperty?: string;
 	constructor(parent: HTMLElement, name: string, hasDynamicDescription: boolean = true)
 	{
 		super(parent, name, hasDynamicDescription);
-		this.setting.addText(text => this.text = text);
+		this.component = new TextComponent(this.compElmt);
 		this.onChange(value => {});
-	}
-	value(value: string): TextField
-	{
-		this.text.setValue(value);
-		this.setting.setDesc("");
-		this.text.changeCallback(value);
-
-		return this;
-	}
-	link(dataSrc: any, propertyName?: string): Dropdown
-	{
-		this.dataSource = dataSrc;
-		this.linkedProperty = propertyName;
-
-		if(this.dataSource && this.linkedProperty)
-			this.value(this.dataSource[this.linkedProperty]);
-
-		return this;
 	}
 	onChange(cb): TextField
 	{
-		this.text?.onChange(value => {
-			if(this.dataSource && this.linkedProperty)
-				this.dataSource[this.linkedProperty] = value;
+		this.component?.onChange(value => {
+			if(this.linkSrc && this.linkedProperty)
+				this.linkSrc[this.linkedProperty] = value;
 
 			cb(value);
 		});

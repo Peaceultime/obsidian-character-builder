@@ -131,3 +131,104 @@ If your plugin does not need CSS, delete this file.
 .character-builder-total-stats {
     display: inline;
 }
+
+.character-builder-setting {
+  display: flex;
+  flex-direction: column;align-items: stretch;
+  padding: 0.75em 0 0.75em 0;
+  border-top: 1px solid var(--background-modifier-border);
+  /* Add extra space for setting heading if it starts a new section */
+}
+.character-builder-setting + .character-builder-setting-heading {
+  margin-top: 0.75em;
+}
+.character-builder-setting:first-child {
+  /* padding-top: 0; */
+  border-top: none;
+}
+.character-builder-setting > *:first-child {
+  margin-right: var(--size-4-4);
+}
+.character-builder-setting > *:last-child {
+  margin-right: 0;
+}
+.character-builder-setting.mod-cta {
+  justify-content: center;
+}
+.character-builder-setting-heading {
+  font-weight: var(--font-semibold);
+  border-top: none;
+}
+.character-builder-setting-heading .character-builder-setting-info {
+  flex-grow: 0;
+  margin-right: 0;
+}
+.character-builder-setting-heading .character-builder-setting-description {
+  font-weight: var(--font-normal);
+}
+.character-builder-setting-info {
+  display: flex;align-items: baseline;
+}
+.character-builder-setting-description {
+  flex: 1 1 auto;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  padding-top: var(--size-4-1);
+  line-height: var(--line-height-tight);
+}
+.character-builder-setting-description:empty {
+  display: none;
+}
+.character-builder-setting-description code {
+  font-family: var(--font-monospace);
+  font-size: var(--font-smaller);
+  border-radius: var(--radius-s);
+  padding: 0 3px 2px 3px;
+  position: relative;
+  bottom: 1px;
+}
+.character-builder-setting-description ul {
+  margin: var(--size-4-1) 0;
+  padding-left: var(--size-4-6);
+}
+.character-builder-setting-name {
+  color: var(--text-normal);
+  font-size: var(--font-ui-medium);
+  line-height: var(--line-height-tight);
+  flex: 1 1 auto;
+}
+.character-builder-setting-control {
+  flex: 1 1 auto;
+  text-align: right;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--size-4-2);
+}
+.character-builder-setting-control.mod-vertical {
+  flex-direction: column;
+}
+.character-builder-setting-control.mod-vertical > *:not(:last-child) {
+  margin-bottom: 10px;
+  margin-right: 0;
+}
+.character-builder-setting-control.mod-hotkey {
+  padding-top: 0;
+  cursor: default;
+}
+.character-builder-setting-control.mod-hotkey input {
+  font-family: var(--font-monospace);
+  font-size: var(--font-smaller);
+}
+.character-builder-setting-control.mod-hotkey input:focus {
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+.character-builder-setting-control select {
+  width: inherit;
+  max-width: 400px;
+}
+
+.character-builder-setting-description > :first-child {
+    margin-top: 0;
+}
