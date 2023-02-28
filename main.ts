@@ -117,6 +117,7 @@ export default class CharacterBuilder extends Plugin {
 
 	async onunload() {
 		this.app.workspace.detachLeavesOfType(VIEW_TYPE_CHARACTER_BUILDER_FULL);
+		console.clear();
 	}
 
 	async initCache(): void {
@@ -235,8 +236,9 @@ class CharacterBuilderFullView extends ItemView {
 		const settingDropdown = new Dropdown(contentEl, "Univers", false).source(this, `races`).link("setting");
 		const raceGroup = this.group(contentEl, "Race du personnage", true);
 		const raceDropdown = new Dropdown(raceGroup, "Race", this).source(this, `races/{setting}/content`).link("race");
-		const subraceDropdown = new Dropdown(raceGroup, "Sous-race").source(this, `races/{setting}/content/{race}/subraces`).link("subrace");
-		const featureDropdown = new Dropdown(raceGroup, "Bonus racial").source(this, `races/{setting}/content/{race}/features`).link("feature");
+		const splitRaceContainer = raceGroup.createDiv({ cls: "character-builder-splitter-container" });
+		const subraceDropdown = new Dropdown(splitRaceContainer, "Sous-race").source(this, `races/{setting}/content/{race}/subraces`).link("subrace");
+		const featureDropdown = new Dropdown(splitRaceContainer, "Bonus racial").source(this, `races/{setting}/content/{race}/features`).link("feature");
 
 		settingDropdown.onChange(value => {
 			raceDropdown.update();
@@ -248,22 +250,15 @@ class CharacterBuilderFullView extends ItemView {
 			featureDropdown.update();
 		});
 
-		const armorSlider = new Setting(contentEl);
-
-		armorSlider.setName(`Armure max`).setDesc(`L'armure maximum determine le nombre de talents disponibles au niveau 1.`)
-		.addSlider(slider => slider.setLimits(2, 6, 2).onChange(value => {
-			this.armor.initialLimit = value;
-			this.initialTalentCount = 6 - value / 2;
-
-			armorSlider.setName(`Armure max (${this.armor.initialLimit})`).setDesc(`L'armure maximum determine le nombre de talents disponibles au niveau 1 (${this.initialTalentCount}).`);
-		}).setValue(2));
-
-		const statBlockContainer = contentEl.createDiv({ cls: "character-builder-statblock-container" });
+		const splitContainer = contentEl.createDiv({ cls: "character-builder-splitter-container" });
+		const statBlockContainer = splitContainer.createDiv({ cls: "character-builder-statblock-container" });
 
 		const stats = Object.keys(this.statBlock);
-		let remaining = this.settings.statAmount;
-		this.table(statBlockContainer, Object.values(StatBlockNames), ["Statistique", "Bonus racial", "Réussite haute", "Réussite extrème"], (elmt, col, row) => {
+		let totalElmt;
+		this.remaining = parseInt(this.settings.statAmount);
+		this.table(statBlockContainer, Object.values(StatBlockNames), ["Statistique", "Bonus racial", "Réussite normale", "Réussite haute", "Réussite extrème"], (elmt, col, row) => {
 			const stat = this.statBlock[stats[col]];
+			const self = this;
 			switch(row)
 			{
 				case 0:
@@ -271,15 +266,29 @@ class CharacterBuilderFullView extends ItemView {
 						if(oldVal === newVal)
 							return;
 
-						remaining += oldVal;
+						if(oldVal !== undefined)
+							self.remaining += oldVal;
 
-						if(newVal > remaining)
-							newVal = remaining;
-
-						remaining -= remaining;
+						if(newVal > self.remaining)
+						{
+							newVal = self.remaining;
+							self.remaining = 0;
+						}
+						else
+						{
+							self.remaining -= newVal;
+						}
 
 						stat.initial = newVal;
-						this.value(newVal);
+
+						try {
+							this.component.parentElement.parentElement.parentElement.children[2].children[col + 1].textContent = stat.initial + stat.bonus;
+							this.component.parentElement.parentElement.parentElement.children[3].children[col + 1].textContent = Math.floor((stat.initial + stat.bonus) / 2);
+							this.component.parentElement.parentElement.parentElement.children[4].children[col + 1].textContent = Math.floor((stat.initial + stat.bonus) / 5);
+							totalElmt.textContent = self.remaining;
+						} catch(e) {}
+
+						return newVal;
 					}).value(this.settings.minStat);
 					return;
 				case 1:
@@ -288,19 +297,43 @@ class CharacterBuilderFullView extends ItemView {
 							return;
 
 						stat.bonus = newVal;
-						this.value(newVal);
+
+						try {
+							this.component.parentElement.parentElement.parentElement.children[2].children[col + 1].textContent = stat.initial + stat.bonus;
+							this.component.parentElement.parentElement.parentElement.children[3].children[col + 1].textContent = Math.floor((stat.initial + stat.bonus) / 2);
+							this.component.parentElement.parentElement.parentElement.children[4].children[col + 1].textContent = Math.floor((stat.initial + stat.bonus) / 5);
+						} catch(e) {}
 					}).value(0);
 					return;
 				case 2:
-					elmt.createEl("i", { text: Math.floor((stat.initial + stat.bonus) / 2) });
+					elmt.createEl("i", { text: stat.initial + stat.bonus });
 					return;
 				case 3:
+					elmt.createEl("i", { text: Math.floor((stat.initial + stat.bonus) / 2) });
+					return;
+				case 4:
 					elmt.createEl("i", { text: Math.floor((stat.initial + stat.bonus) / 5) });
 					return;
 				default:
 					return;
 			}
 		});
+		const totalContainer = statBlockContainer.createDiv({ cls: 'character-builder-total-stats' });
+		totalContainer.createEl("span", { text: 'Restant: ' });
+		totalElmt = totalContainer.createEl("strong", { text: this.remaining });
+
+		const splittedContainer = splitContainer.createDiv();
+		const armorSlider = new Setting(splittedContainer);
+		let talentText;
+		armorSlider.setName(`Armure max`).setDesc(`L'armure maximum determine le nombre de talents disponibles au niveau 1.`)
+		.addSlider(slider => slider.setLimits(2, 6, 2).onChange(value => {
+			this.armor.initialLimit = value;
+			this.initialTalentCount = 6 - value / 2;
+
+			talentText?.setValue(6 - value / 2);
+			armorSlider.setName(`Armure max: ${this.armor.initialLimit}`)
+		}).setValue(2));
+		new Setting(splittedContainer).setName(`Talents au niveau 1`).addText(text => talentText = text.setValue(this.initialTalentCount)).setDisabled(true);
 
 		new Setting(contentEl).addButton(btn => btn.setButtonText('Créer').onClick(console.log));
 	}
@@ -397,28 +430,36 @@ class CharacterBuilderSettingTab extends PluginSettingTab {
 }
 
 abstract class VisualComponent {
-	setting: Setting;
+	setting: HTMLElement;
+	nameElmt: HTMLElement;
+	descElmt: HTMLElement;
+	compElmt: HTMLElement;
 	hasDynamicDescription: boolean;
 	constructor(parent: HTMLElement, name: string, hasDynamicDescription: boolean = true)
 	{
-		this.setting = new Setting(parent).setName(name);
+		this.setting = parent.createDiv({ cls: "character-builder-setting" });
+		const info = this.setting.createDiv({ cls: "character-builder-setting-info" });
+		this.nameElmt = info.createDiv({ text: name, cls: "character-builder-setting-name" });
+		this.compElmt = info.createDiv({ cls: "character-builder-setting-component" });
+		this.descElmt = this.settings.createDiv({ cls: "character-builder-setting-desc" });
 		this.hasDynamicDescription = hasDynamicDescription;
 		this.linkedProperty = undefined;
 		this.onChange(value => {});
 	}
-	disable(state: boolean): VisualComponent
+	name(name: string): VisualComponent
 	{
-		this.setting.setDisabled(state);
+		this.nameElmt.textContent = name;
 
 		return this;
 	}
 	desc(desc: string): VisualComponent
 	{
-		this.setting.setDesc(desc);
+		this.descElmt.textContent = desc;
 
 		return this;
 	}
 
+	abstract disable(state: boolean): VisualComponent;
 	abstract value(value: string): VisualComponent;
 	abstract onChange(cb): VisualComponent;
 }
@@ -554,22 +595,22 @@ class TextField extends VisualComponent {
 	}
 }
 class HTMLStatElement {
+	min: number;
+	max: number;
 	val: number;
 	component: HTMLElement;
 	cb: (oldVal: number, newVal: number) => void;
 	constructor(parent: HTMLElement, min?: number, max?: number, step: number = 1)
 	{
+		this.min = min;
+		this.max = max;
 		this.component = parent.createEl("input", { type: "number", cls: "character-builder-stat-input", attr: { min: min, max: max, step: step } });
 		this.component.addEventListener("change", this._onChange.bind(this));
 	}
 	value(value: number): HTMLStatElement
 	{
-		if(this.val != value)
-		{
-			this.component.valueAsNumber = value;
-			this.val = value;
-			this.component.dispatchEvent(new Event("change", { bubbles: true }));
-		}
+		this.component.valueAsNumber = value;
+		this._onChange();
 		return this;
 	}
 	change(cb: (oldVal: number, newVal: number) => void): HTMLStatElement
@@ -577,8 +618,36 @@ class HTMLStatElement {
 		this.cb = cb;
 		return this;
 	}
-	private _onChange()
+	private _onChange(): void
 	{
-		this.cb && this.cb(this.val, this.component.valueAsNumber);
+		//CHECKING VALIDITY
+		let value = parseInt(this.component.valueAsNumber);
+		if(isNaN(value) || value === "" || value === undefined)
+			value = parseInt(this.component.attributes["min"].value) || 0;
+		if(this.component.validity.rangeOverflow)
+			value = parseInt(this.component.attributes["max"].value) || 0;
+		else if(this.component.validity.rangeUnderflow)
+			value = parseInt(this.component.attributes["min"].value) || 0;
+		else if(this.component.validity.stepMismatch)
+			value -= value % parseInt(this.component.attributes["step"].value) || 1;
+		this.component.valueAsNumber = value;
+
+		//SENDING CALLBACK
+		const oldVal = this.val;
+		this.val = value;
+		if(this.cb)
+		{
+			const returned = this.cb(oldVal, value);
+			if(returned === false)
+			{
+				this.val = oldVal;
+				this.component.valueAsNumber = oldVal;
+			}
+			else if(returned !== undefined)
+			{
+				this.val = returned;
+				this.component.valueAsNumber = returned;
+			}
+		}
 	}
 }

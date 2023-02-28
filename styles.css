@@ -45,6 +45,10 @@ If your plugin does not need CSS, delete this file.
     position: relative;
     top: -17px;
 }
+.character-builder-group-container.character-builder-group-collapsed
+{
+    padding-bottom: 1em;
+}
 .character-builder-group-collapsed .character-builder-group-collapse-icon
 {
 	transform: rotate(-90deg);
@@ -57,4 +61,73 @@ If your plugin does not need CSS, delete this file.
 [data-type="character-builder-full-view"] .setting-item
 {
     align-items: start !important;
+}
+
+.character-builder-table {
+    width: 100%;
+    max-width: 800px;
+    margin: auto;
+    font-size: var(--font-ui-small);
+}
+
+.character-builder-table-cell, .character-builder-total-stats {
+    width: 12%;
+    height: var(--input-height);
+    -webkit-app-region: no-drag;
+    color: var(--text-normal);
+    font-family: inherit;
+    outline: none;
+}
+
+.character-builder-table, .character-builder-stat-input {
+    text-align: center;
+}
+
+.character-builder-table-descriptor {
+    width: 16%;
+    text-align: start;
+}
+.character-builder-stat-input {
+    padding: var(--size-2-1) var(--size-2-2) !important;
+}
+.character-builder-stat-input::-webkit-inner-spin-button {
+    appearance: auto !important;
+    width: 8px;
+}
+.character-builder-splitter-container {
+    display: flex;
+    width: 100%;
+    padding: 0.75em 1em;
+    border-top: 1px solid var(--background-modifier-border);
+}
+
+.character-builder-splitter-container > div {
+    flex: 1;
+    border: none;
+}
+
+.character-builder-statblock-container {
+    flex: 2 !important;
+}
+
+.character-builder-splitter-container > div:not(:last-child) {
+    border-right: 1px solid var(--background-modifier-border);
+    padding-right: 1em !important;
+    margin-right: 1em !important;
+}
+
+.character-builder-table-header, .character-builder-table-descriptor {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.character-builder-table-header, .character-builder-table-cell, .character-builder-stat-input {
+    max-width: 50px;
+}
+.character-builder-table-descriptor {
+    max-width: 90px;
+}
+.character-builder-total-stats {
+    display: inline;
 }
