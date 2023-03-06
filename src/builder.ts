@@ -3,12 +3,13 @@ import { Substats, Stat, StatBlock, StatBlockNames, Metadata } from 'src/metadat
 
 export function print(data: any, template: string): string
 {
-	 return template.replaceAll("{statblock}", statblock(data.statBlock))
+	const settings = Cache.cache("settings");
+	return template.replaceAll("{statblock}", statblock(data.statBlock))
 					.replaceAll("{substatblock}", substats(data.substats))
 					.replaceAll("{armor}", data.armor)
 					.replaceAll("{luck}", data.luck)
-					.replaceAll("{race}", `![[${data.settings.racesFolder}/${data.setting}/${data.race}#TRAITS GÉNÉRAUX]]\n![[${data.settings.racesFolder}/${data.setting}/${data.race}#BONUS GLOBAUX]]`)
-					.replaceAll("{subrace}", `![[${data.settings.racesFolder}/${data.setting}/${data.race}#${data.subrace}]]\n`)
+					.replaceAll("{race}", `![[${settings.racesFolder}/${data.setting}/${data.race}#TRAITS GÉNÉRAUX]]\n![[${settings.racesFolder}/${data.setting}/${data.race}#BONUS GLOBAUX]]`)
+					.replaceAll("{subrace}", `![[${settings.racesFolder}/${data.setting}/${data.race}#${data.subrace}]]\n`)
 					.replaceAll("{feature}", Cache.cache(`races/${data.setting}/content/${data.race}/features/${data.feature}`))
 					.replaceAll("{flavoring}", data.flavoring);
 }

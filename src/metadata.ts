@@ -26,6 +26,8 @@ export const StatBlockNames = {
 } as const;
 
 export interface Metadata {
+	type: string;
+
 	setting: string;
 	name: string
 

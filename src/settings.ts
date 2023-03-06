@@ -1,5 +1,6 @@
 import { PluginSettingTab, Setting } from 'obsidian';
 import { Dropdown, TextField } from 'src/components.ts';
+import { CharacterBuilderCache as Cache } from 'src/cache.ts';
 
 export interface CharacterBuilderSettings {
 	charactersFolder: string;
@@ -16,7 +17,7 @@ export const DEFAULT_SETTINGS: CharacterBuilderSettings = {
 	charactersFolder: '99. Personnages',
 	racesFolder: '3. Races/Liste des Races',
 	talentsFolder: '2. Classes/2. Talents',
-	characterTemplate: '99. Personnages/99. Template',
+	characterTemplate: '99. Personnages/99. Template.md',
 	maxStat: 60,
 	maxInitialStat: 45,
 	minStat: 15,
@@ -59,7 +60,10 @@ export class CharacterBuilderSettingTab extends PluginSettingTab {
 	hide()
 	{
 		if(this.dirty)
+		{
 			this.plugin.saveSettings();
+			Cache.cache("settings", this.plugin.settings);
+		}
 
 		this.dirty = false;
 		super.hide();

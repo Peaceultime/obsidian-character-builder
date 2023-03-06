@@ -1,6 +1,6 @@
 export const VIEW_TYPE_CHARACTER_BUILDER_FULL = "character-builder-full-view";
 
-import { ItemView, Setting } from 'obsidian';
+import { ItemView, Setting, Notice } from 'obsidian';
 
 import { CharacterBuilderCache as Cache } from 'src/cache.ts';
 import { CharacterBuilderSettings as Settings } from 'src/settings.ts';
@@ -10,15 +10,12 @@ import { print } from 'src/builder.ts';
 import { Substats, Stat, StatBlock, StatBlockNames, Metadata } from 'src/metadata.ts';
 
 export class CharacterBuilderFullView extends ItemView {
-	metadata: Metadata
+	metadata: Metadata;
 	settings: Settings;
+	path?: string;
 
-	constructor(leaf: WorkspaceLeaf, settings: Settings) {
-	  super(leaf);
-	  this.settings = settings;
-	  this.metadata = {};
-	  this.metadata.statBlock = Object.assign({}, StatBlock);
-	  this.metadata.substats = {};
+	constructor(leaf: WorkspaceLeaf) {
+		super(leaf);
 	}
 
 	getViewType(): string {
@@ -26,10 +23,28 @@ export class CharacterBuilderFullView extends ItemView {
 	}
 
 	getDisplayText(): string {
-		return !!this.metadata.name ? `Création de ${this.metadata.name}` : `Création de personnage`;
+		return `Création de personnage`;
 	}
 
 	async onOpen(): void {
+		await this.openData();
+	}
+
+	async openData(file: TFile): void {
+		if(file)
+		{
+			this.path = file.filepath;
+			this.metadata = this.app.metadataCache.getFileCache(file).frontmatter;
+		}
+		else
+		{
+			this.metadata = {};
+			this.metadata.type = "character";
+			this.metadata.statBlock = Object.assign({}, StatBlock);
+			this.metadata.substats = {};
+		}
+
+		const settings = Cache.cache("settings");
 		let splitElmt;
 		const {contentEl} = this;
 
@@ -62,14 +77,14 @@ export class CharacterBuilderFullView extends ItemView {
 
 		const stats = Object.keys(this.metadata.statBlock);
 		let totalElmt;
-		this.remaining = parseInt(this.settings.statAmount);
+		this.remaining = parseInt(settings.statAmount);
 		this.table(statBlockContainer, Object.values(StatBlockNames), ["Statistique", "Bonus racial", "Réussite normale", "Réussite haute", "Réussite extrème"], (elmt, col, row) => {
 			const stat = this.metadata.statBlock[stats[col]];
 			const self = this;
 			switch(row)
 			{
 				case 0:
-					new HTMLStatElement(elmt, this.settings.minStat, this.settings.maxInitialStat).change(function(oldVal, newVal) {
+					new HTMLStatElement(elmt, settings.minStat, settings.maxInitialStat).change(function(oldVal, newVal) {
 						if(oldVal === newVal)
 							return;
 
@@ -96,7 +111,7 @@ export class CharacterBuilderFullView extends ItemView {
 						} catch(e) {}
 
 						return newVal;
-					}).value(this.settings.minStat);
+					}).value(stat.initial || settings.minStat);
 					return;
 				case 1:
 					new HTMLStatElement(elmt, -6, 6, 3).change(function (oldVal, newVal) {
@@ -110,7 +125,7 @@ export class CharacterBuilderFullView extends ItemView {
 							this.component.parentElement.parentElement.parentElement.children[3].children[col + 1].textContent = Math.floor((stat.initial + stat.bonus) / 2);
 							this.component.parentElement.parentElement.parentElement.children[4].children[col + 1].textContent = Math.floor((stat.initial + stat.bonus) / 5);
 						} catch(e) {}
-					}).value(0);
+					}).value(stat.bonus || 0);
 					return;
 				case 2:
 					elmt.createEl("i", { text: stat.initial + stat.bonus });
@@ -133,13 +148,13 @@ export class CharacterBuilderFullView extends ItemView {
 		const armorSlider = new Slider(splitElmt, `Armure max`).desc(`L'armure maximum determine le nombre de talents disponibles au niveau 1.`).range(2, 6, 2);
 		const talentText = new TextField(splitElmt).name(`Talents au niveau 1`).disable(true).value(this.metadata.talents).class("text-field-no-editor");
 		armorSlider.onChange(value => {
-			this.armor = value;
-			this.talents = 6 - value / 2;
+			this.metadata.armor = value;
+			this.metadata.talents = 6 - value / 2;
 
 			talentText.value(6 - value / 2);
 		}).value(2).tooltip(true);
 
-		new Setting(contentEl).addButton(btn => btn.setButtonText('Créer').onClick(this.create.bind(this)));
+		new Setting(contentEl).addButton(btn => btn.setButtonText(this.path ? 'Modifier' : 'Créer').onClick(this.create.bind(this)));
 	}
 
 	async onClose(): void {
@@ -147,10 +162,11 @@ export class CharacterBuilderFullView extends ItemView {
 	}
 
 	async create(): void {
-		const filepath = `${this.settings.charactersFolder}/${this.metadata.name}.md`;
+		const settings = Cache.cache("settings");
+		const filepath = `${settings.charactersFolder}/${this.metadata.name}.md`;
 		let templateData;
 		try {
-			templateData = await this.app.vault.cachedRead(this.app.vault.getAbstractFileByPath(this.settings.characterTemplate));
+			templateData = await this.app.vault.read(this.app.vault.getAbstractFileByPath(settings.characterTemplate));
 		} catch(e) {
 			new Notice("Le template est introuvable.");
 			return;

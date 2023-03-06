@@ -1,4 +1,4 @@
-import { App, Editor, WorkspaceLeaf, Notice, Plugin } from 'obsidian';
+import { App, Editor, WorkspaceLeaf, Plugin } from 'obsidian';
 
 import { CharacterBuilderCache as Cache } from 'src/cache.ts';
 import { CharacterBuilderSettings as Settings, DEFAULT_SETTINGS, CharacterBuilderSettingTab as SettingTab } from 'src/settings.ts';
@@ -13,7 +13,7 @@ export default class CharacterBuilder extends Plugin {
 
 		this.registerView(
 			VIEW_TYPE_CHARACTER_BUILDER_FULL,
-			(leaf) => new FullView(leaf, this.settings),
+			(leaf) => new FullView(leaf),
 		);
 
 		this.addRibbonIcon('calculator', 'Créer un nouveau personnage', async (evt: MouseEvent) => {
@@ -24,10 +24,24 @@ export default class CharacterBuilder extends Plugin {
 
 		this.addSettingTab(new SettingTab(this.app, this));
 
+		this.registerEvent(
+			this.app.workspace.on("editor-menu", (menu, editor, view) => {
+				if(view.file && view.lastFrontmatter && JSON.parse(view.lastFrontmatter).type === "character")
+				{
+					menu.addSeparator().addItem(item => {
+						item.setTitle("Modifier le personnage").setIcon("calculator").onClick(async () => {
+							const file = view.file, leaf = view.leaf;
+							await leaf.setViewState({ type: VIEW_TYPE_CHARACTER_BUILDER_FULL, active: true });
+							await leaf.view.openData(file);
+							this.app.workspace.revealLeaf(leaf);
+						});
+					});
+				}
+			})
+		);
+
 		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
 		//this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
-
-		window.CharacterBuilderCache = Cache; //DEBUG
 	}
 
 	async onunload() {
@@ -86,7 +100,7 @@ export default class CharacterBuilder extends Plugin {
 	}
 
 	async loadSettings(): void {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		this.settings = Cache.cache("settings", Object.assign({}, DEFAULT_SETTINGS, await this.loadData()));
 	}
 
 	async saveSettings(): void {

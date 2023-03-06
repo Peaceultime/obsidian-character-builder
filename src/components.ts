@@ -1,5 +1,7 @@
 import { TextComponent, DropdownComponent, SliderComponent, ValueComponent, MarkdownPreviewView } from 'obsidian';
 
+import { CharacterBuilderCache as Cache } from 'src/cache.ts';
+
 export abstract class VisualComponent {
 	setting: HTMLElement;
 	nameElmt: HTMLElement;
@@ -92,7 +94,7 @@ export class Dropdown extends VisualComponent {
 		let match, target = this.src;
 		while((match = /{(.+?)}/g.exec(target)) !== null)
 			target = target.replace(match[0], this.dataSource[match[1]]);
-		this.cache = CharacterBuilderCache.cache(target);
+		this.cache = Cache.cache(target);
 
 		if(!this.src || !this.cache)
 		{
