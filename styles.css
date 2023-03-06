@@ -232,3 +232,21 @@ If your plugin does not need CSS, delete this file.
 .character-builder-setting-description > :first-child {
     margin-top: 0;
 }
+
+.character-builder-slider-tooltip {
+    font-weight: bold;
+}
+.character-builder-slider-tooltip.hidden-tooltip {
+    display: none;
+}
+
+.character-builder-setting.text-field-no-editor input {
+    border: none !important;
+    background: inherit;
+    color: var(--text-normal);
+    font-family: inherit;
+    font-size: var(--font-ui-normal);
+    outline: none;
+    text-align: right;
+    font-weight: bold;
+}
