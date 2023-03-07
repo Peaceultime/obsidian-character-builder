@@ -4,7 +4,6 @@ export interface Substats {
 export const Stat = {
 	initial: 0,
 	bonus: 0,
-	levels: 0,
 } as const;
 export const StatBlock = {
 	strength: {...Stat},

@@ -10,12 +10,14 @@ import { print } from 'src/builder.ts';
 import { Substats, Stat, StatBlock, StatBlockNames, Metadata } from 'src/metadata.ts';
 
 export class CharacterBuilderFullView extends ItemView {
+	plugin: any;
 	metadata: Metadata;
 	settings: Settings;
-	path?: string;
+	file: TFile;
 
-	constructor(leaf: WorkspaceLeaf) {
+	constructor(leaf: WorkspaceLeaf, plugin: any) {
 		super(leaf);
+		this.plugin = plugin;
 	}
 
 	getViewType(): string {
@@ -27,22 +29,30 @@ export class CharacterBuilderFullView extends ItemView {
 	}
 
 	async onOpen(): void {
-		await this.openData();
+		const {contentEl} = this;
+
+		contentEl.empty();
+		const loading = contentEl.createDiv({ cls: "character-builder-loading-container" });
+		loading.createSpan({ cls: "character-builder-loading-title" });
+		loading.createSpan({ cls: "character-builder-loading-bar" });
+
+		this.plugin.loading.then(this.openData.bind(this));
 	}
 
 	async openData(file: TFile): void {
 		if(file)
 		{
-			this.path = file.filepath;
+			this.file = file;
 			this.metadata = this.app.metadataCache.getFileCache(file).frontmatter;
+			this.metadata.position = undefined;
 		}
 		else
 		{
 			this.metadata = {};
-			this.metadata.type = "character";
 			this.metadata.statBlock = Object.assign({}, StatBlock);
 			this.metadata.substats = {};
 		}
+		this.metadata.type = "character";
 
 		const settings = Cache.cache("settings");
 		let splitElmt;
@@ -154,7 +164,7 @@ export class CharacterBuilderFullView extends ItemView {
 			talentText.value(6 - value / 2);
 		}).value(2).tooltip(true);
 
-		new Setting(contentEl).addButton(btn => btn.setButtonText(this.path ? 'Modifier' : 'Créer').onClick(this.create.bind(this)));
+		new Setting(contentEl).addButton(btn => btn.setButtonText(this.file ? 'Modifier' : 'Créer').onClick(this.create.bind(this)));
 	}
 
 	async onClose(): void {
@@ -176,18 +186,34 @@ export class CharacterBuilderFullView extends ItemView {
 			new Notice("Le template est introuvable.");
 			return;
 		}
-		if(!await this.app.vault.adapter.exists(filepath))
+
+		console.log(this.file);
+
+		if(await this.app.vault.adapter.exists(filepath) && this.file && this.file.path !== filepath)
 		{
-			const content = `---\n${JSON.stringify(this.metadata)}\n---\n${print(this.metadata, templateData)}`;
-			const file = await this.app.vault.create(filepath, content);
-			const leaf = this.app.workspace.getLeaf();
-			await leaf.openFile(file);
-		}
-		else
-		{
-			new Notice("Le fichier existe déjà.");
+			new Notice("Ce fichier existe déjà");
 			return;
 		}
+
+		const content = `---\n${JSON.stringify(this.metadata)}\n---\n${print(this.metadata, templateData)}`;
+
+		let file;
+		if(this.file && filepath !== this.file.path)
+		{
+			await this.app.vault.delete(this.file);
+			file = await this.app.vault.create(filepath, content);
+		}
+		else if(this.file)
+		{
+			await this.app.vault.modify(this.file, content);
+			file = this.file;
+		}
+		else if(!this.file)
+		{
+			file = await this.app.vault.create(filepath, content);
+		}
+
+		await this.leaf.openFile(file);
 	}
 
 	group(elmt: HTMLElement, title: string, collapsed: boolean = false): HTMLDivElement

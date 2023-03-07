@@ -7,13 +7,28 @@ import { VIEW_TYPE_CHARACTER_BUILDER_FULL, CharacterBuilderFullView as FullView 
 export default class CharacterBuilder extends Plugin {
 	settings: Settings;
 
+	loading: Promise<void>;
+
 	async onload(): void {
 		await this.loadSettings();
-		await this.initCache();
+		if(this.app.metadataCache.initialized === false)
+		{
+			this.loading = new Promise(function(res, rej) {
+				this.app.metadataCache.on("resolved", async () => {
+					this.app.metadataCache.off("resolved");
+					await this.initCache();
+					res();
+				});
+			}.bind(this));
+		}
+		else
+		{
+			this.loading = this.initCache();
+		}
 
 		this.registerView(
 			VIEW_TYPE_CHARACTER_BUILDER_FULL,
-			(leaf) => new FullView(leaf),
+			(leaf) => new FullView(leaf, this),
 		);
 
 		this.addRibbonIcon('calculator', 'Créer un nouveau personnage', async (evt: MouseEvent) => {
@@ -25,12 +40,14 @@ export default class CharacterBuilder extends Plugin {
 		this.addSettingTab(new SettingTab(this.app, this));
 
 		this.registerEvent(
-			this.app.workspace.on("editor-menu", (menu, editor, view) => {
-				if(view.file && view.lastFrontmatter && JSON.parse(view.lastFrontmatter).type === "character")
+			this.app.workspace.on("file-menu", (menu, file, source, leaf) => {
+				const metadata = this.app.metadataCache.getFileCache(file);
+				if(metadata.hasOwnProperty("frontmatter") && metadata.frontmatter.type === "character")
 				{
 					menu.addSeparator().addItem(item => {
 						item.setTitle("Modifier le personnage").setIcon("calculator").onClick(async () => {
-							const file = view.file, leaf = view.leaf;
+							if(!leaf)
+								leaf = this.app.workspace.getLeaf(true);
 							await leaf.setViewState({ type: VIEW_TYPE_CHARACTER_BUILDER_FULL, active: true });
 							await leaf.view.openData(file);
 							this.app.workspace.revealLeaf(leaf);
@@ -57,11 +74,7 @@ export default class CharacterBuilder extends Plugin {
 		const groups = races.reduce((p, v) => { if(!p.includes(v.parent)) p.push(v.parent); return p; }, []);
 
 		for(let i = 0; i < groups.length; i++)
-		{
-			const r = races.filter(e => e.parent === groups[i]);
-
-			Cache.cache(`races/${groups[i]}/content`, r.reduce((p, v) => { p[v.name] = v; return p; }, {}));
-		}
+			Cache.cache(`races/${groups[i]}/content`, races.filter(e => e.parent === groups[i]).reduce((p, v) => { p[v.name] = v; return p; }, {}));
 
 		const talents = files.filter(e => e.path.startsWith(this.settings.talentsFolder + "/")).map(this.getTalentContent.bind(this));
 		Cache.cache("talents/metadata", talents.reduce((p, v) => { p[v.name] = v; return p; }, {}));
@@ -73,7 +86,7 @@ export default class CharacterBuilder extends Plugin {
         if(!metadata.hasOwnProperty("headings") || !metadata.hasOwnProperty("sections"))
             return;
 
-        const content = await this.app.vault.cachedRead(this.app.vault.getAbstractFileByPath(file.path));
+        const content = await this.app.vault.read(this.app.vault.getAbstractFileByPath(file.path));
         const desc = content.substring(metadata.headings[0].position.start.offset, metadata.headings[2].position.start.offset - 1);
         const subraces = metadata.headings.slice(0, metadata.headings.findIndex(e => e.heading.startsWith("BONUS RACIA"))).map((e, i) => i).slice(3).map(e => metadata.headings[e].heading).reduce((p, v) => {
         	p[v] = this.contentOfHeading(metadata, content, v, true); return p;

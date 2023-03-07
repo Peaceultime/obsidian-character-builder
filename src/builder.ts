@@ -8,9 +8,12 @@ export function print(data: any, template: string): string
 					.replaceAll("{substatblock}", substats(data.substats))
 					.replaceAll("{armor}", data.armor)
 					.replaceAll("{luck}", data.luck)
-					.replaceAll("{race}", `![[${settings.racesFolder}/${data.setting}/${data.race}#TRAITS GÉNÉRAUX]]\n![[${settings.racesFolder}/${data.setting}/${data.race}#BONUS GLOBAUX]]`)
-					.replaceAll("{subrace}", `![[${settings.racesFolder}/${data.setting}/${data.race}#${data.subrace}]]\n`)
-					.replaceAll("{feature}", Cache.cache(`races/${data.setting}/content/${data.race}/features/${data.feature}`))
+					.replaceAll("{race-name}", `${data.race}`)
+					.replaceAll("{race-desc}", `![[${settings.racesFolder}/${data.setting}/${data.race}#TRAITS GÉNÉRAUX]]\n![[${settings.racesFolder}/${data.setting}/${data.race}#BONUS GLOBAUX]]`)
+					.replaceAll("{subrace-name}", `${data.subrace}`)
+					.replaceAll("{subrace-desc}", `![[${settings.racesFolder}/${data.setting}/${data.race}#${data.subrace}]]`)
+					.replaceAll("{feature-name}", `${data.feature}`)
+					.replaceAll("{feature-desc}", Cache.cache(`races/${data.setting}/content/${data.race}/features/${data.feature}`))
 					.replaceAll("{flavoring}", data.flavoring);
 }
 
@@ -41,7 +44,7 @@ function table(header: string[], content: string[][]): string
 }
 function stat(value: Stat, divider: number = 1): string
 {
-	return Math.floor((value.initial + value.bonus + value.levels) / divider);
+	return Math.floor((value.initial + value.bonus) / divider);
 }
 function statblock(value: StatBlock): string
 {
@@ -53,7 +56,7 @@ function statblock(value: StatBlock): string
 		if(!value.hasOwnProperty(key))
 			continue;
 
-		content[0][i] = `${value[key].initial} (+*${value[key].bonus}*+*${value[key].levels}*)`;
+		content[0][i] = `${value[key].initial} (+*${value[key].bonus}*)`;
 		content[1][i] = `${stat(value[key], 2)}`;
 		content[2][i] = `${stat(value[key], 5)}`;
 		i++;
