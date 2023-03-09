@@ -10,8 +10,8 @@ export default class CharacterBuilder extends Plugin {
 	loading: Promise<void>;
 
 	async onload(): void {
-		await this.loadSettings();
-		if(this.app.metadataCache.initialized === false)
+		await this.loadPluginData();
+		if(!this.app.metadataCache.initialized)
 		{
 			this.loading = new Promise(function(res, rej) {
 				this.app.metadataCache.on("resolved", async () => {
@@ -58,7 +58,32 @@ export default class CharacterBuilder extends Plugin {
 		);
 
 		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		//this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
+		this.registerInterval(window.setInterval(() => this.savePluginData(), 5 * 60 * 1000));
+
+		this.app.workspace.onLayoutReady(() => {
+			const leaf = this.app.workspace.getLeaf(true);
+			this.app.workspace.detachLeavesOfType(VIEW_TYPE_CHARACTER_BUILDER_FULL);
+			this.loadSavedViews();
+			leaf.detach();
+		});
+	}
+
+	async loadSavedViews() {
+		await this.loading;
+		for(let i = 0; i < this.savedData.views.length; i++)
+		{
+			const view = this.savedData.views[i];
+			const file = this.app.vault.getAbstractFileByPath(view.path);
+			const leaf = this.app.workspace.getLeaf(true);
+			await leaf.setViewState({ type: VIEW_TYPE_CHARACTER_BUILDER_FULL, active: view.active });
+			if(file)
+			{
+				leaf.view.file = file;
+			}
+			leaf.view.metadata = view.metadata;
+			leaf.view.refreshRender();
+			this.app.workspace.revealLeaf(leaf);
+		}
 	}
 
 	async onunload() {
@@ -77,7 +102,7 @@ export default class CharacterBuilder extends Plugin {
 			Cache.cache(`races/${groups[i]}/content`, races.filter(e => e.parent === groups[i]).reduce((p, v) => { p[v.name] = v; return p; }, {}));
 
 		const talents = await Promise.all(files.filter(e => e.path.startsWith(this.settings.talentsFolder + "/") && !/\d\. /.test(e.basename)).map(this.getTalentContent.bind(this)));
-		console.log(Cache.cache("talents", talents.filter(e => !!e)));
+		Cache.cache("talents", talents.filter(e => !!e));
 	}
 
 	async getRaceContent(file: TFile): any {
@@ -125,12 +150,17 @@ export default class CharacterBuilder extends Plugin {
 		return {filename: file.basename, type: type, options: headingHierarchy(metadata.headings), path: file.path, talentsRequired: links, levelRequired: level === Infinity || type === undefined ? 1 : level, stack: /(?<!non )[Cc]umulable/.test(content) };
 	}
 
-	async loadSettings(): void {
-		this.settings = Cache.cache("settings", Object.assign({}, DEFAULT_SETTINGS, await this.loadData()));
+	async loadPluginData(): void {
+		const data = await this.loadData();
+
+		this.settings = Cache.cache("settings", Object.assign({}, DEFAULT_SETTINGS, data.settings));
+		this.savedData = data;
 	}
 
-	async saveSettings(): void {
-		await this.saveData(this.settings);
+	async savePluginData(): void {
+		this.savedData.views = (await this.app.workspace.getLeavesOfType(VIEW_TYPE_CHARACTER_BUILDER_FULL)).map(e => { return { metadata: e.view.metadata, path: e.view.file?.path, active: e === this.app.workspace.activeLeaf }; });
+		this.savedData.settings = this.settings;
+		await this.saveData(this.savedData);
 		await this.initCache();
 	}
 }

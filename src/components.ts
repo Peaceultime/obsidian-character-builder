@@ -1,4 +1,4 @@
-import { TextComponent, DropdownComponent, SliderComponent, ValueComponent, MarkdownPreviewView } from 'obsidian';
+import { TextComponent, TextAreaComponent, DropdownComponent, SliderComponent, ValueComponent, MarkdownPreviewView } from 'obsidian';
 
 import { CharacterBuilderCache as Cache } from 'src/cache.ts';
 
@@ -142,6 +142,26 @@ export class TextField extends VisualComponent {
 	{
 		super(parent, name);
 		this.component = new TextComponent(this.compElmt);
+		this.onChange(value => {});
+	}
+	onChange(cb): TextField
+	{
+		this.component?.onChange(value => {
+			if(this.linkSrc && this.linkedProperty)
+				this.linkSrc[this.linkedProperty] = value;
+
+			cb(value);
+		});
+
+		return this;
+	}
+}
+export class TextArea extends VisualComponent {
+	constructor(parent: HTMLElement, name: string)
+	{
+		super(parent, name);
+		this.compElmt.classList.add("character-builder-setting-text-area-control");
+		this.component = new TextAreaComponent(this.compElmt);
 		this.onChange(value => {});
 	}
 	onChange(cb): TextField

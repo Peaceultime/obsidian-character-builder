@@ -13,6 +13,17 @@ export interface CharacterBuilderSettings {
 	statAmount: number;
 }
 
+export interface ViewSaveData {
+	metadata: Metadata;
+	path: string;
+	active: boolean;
+}
+
+export interface SaveData {
+	settings: CharacterBuilderSettings;
+	views: ViewSaveData[];
+}
+
 export const DEFAULT_SETTINGS: CharacterBuilderSettings = {
 	charactersFolder: '99. Personnages',
 	racesFolder: '3. Races/Liste des Races',
@@ -40,29 +51,29 @@ export class CharacterBuilderSettingTab extends PluginSettingTab {
 
 		containerEl.createEl('h2', {text: 'Dossiers'});
 
-		new TextField(containerEl, "Dossier des personnages", false).link(this.plugin.settings, "charactersFolder").onChange(value => this.dirty = true);
-		new TextField(containerEl, "Dossier des races", false).link(this.plugin.settings, "racesFolder").onChange(value => this.dirty = true);
-		new TextField(containerEl, "Dossier des talents", false).link(this.plugin.settings, "talentsFolder").onChange(value => this.dirty = true);
+		new TextField(containerEl, "Dossier des personnages", false).link(this.plugin.savedData.settings, "charactersFolder").onChange(value => this.dirty = true);
+		new TextField(containerEl, "Dossier des races", false).link(this.plugin.savedData.settings, "racesFolder").onChange(value => this.dirty = true);
+		new TextField(containerEl, "Dossier des talents", false).link(this.plugin.savedData.settings, "talentsFolder").onChange(value => this.dirty = true);
 
 
 		containerEl.createEl('h2', {text: 'Modèles'});
 
-		new TextField(containerEl, "Modèle de fiche", false).link(this.plugin.settings, "characterTemplate").onChange(value => this.dirty = true);
+		new TextField(containerEl, "Modèle de fiche", false).link(this.plugin.savedData.settings, "characterTemplate").onChange(value => this.dirty = true);
 
 		containerEl.createEl('h2', {text: 'Stats principales'});
 
-		new TextField(containerEl, "Max de point par stat", false).link(this.plugin.settings, "maxStat").onChange(value => this.dirty = true);
-		new TextField(containerEl, "Min de points par stat", false).link(this.plugin.settings, "minStat").onChange(value => this.dirty = true);
-		new TextField(containerEl, "Max de point par stat à la création", false).link(this.plugin.settings, "maxInitialStat").onChange(value => this.dirty = true);
-		new TextField(containerEl, "Points total disponnible à la création", false).link(this.plugin.settings, "statAmount").onChange(value => this.dirty = true);
+		new TextField(containerEl, "Max de point par stat", false).link(this.plugin.savedData.settings, "maxStat").onChange(value => this.dirty = true);
+		new TextField(containerEl, "Min de points par stat", false).link(this.plugin.savedData.settings, "minStat").onChange(value => this.dirty = true);
+		new TextField(containerEl, "Max de point par stat à la création", false).link(this.plugin.savedData.settings, "maxInitialStat").onChange(value => this.dirty = true);
+		new TextField(containerEl, "Points total disponnible à la création", false).link(this.plugin.savedData.settings, "statAmount").onChange(value => this.dirty = true);
 	}
 
 	hide()
 	{
 		if(this.dirty)
 		{
-			this.plugin.saveSettings();
-			Cache.cache("settings", this.plugin.settings);
+			this.plugin.saveData();
+			Cache.cache("settings", this.plugin.savedData.settings);
 		}
 
 		this.dirty = false;

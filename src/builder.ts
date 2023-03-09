@@ -56,7 +56,7 @@ function statblock(value: StatBlock): string
 		if(!value.hasOwnProperty(key))
 			continue;
 
-		content[0][i] = `${value[key].initial} (+*${value[key].bonus}*)`;
+		content[0][i] = `${value[key].initial} (**${value[key].bonus >= 0 ? "+" : ""}${value[key].bonus}**)`;
 		content[1][i] = `${stat(value[key], 2)}`;
 		content[2][i] = `${stat(value[key], 5)}`;
 		i++;

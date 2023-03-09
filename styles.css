@@ -195,7 +195,8 @@ If your plugin does not need CSS, delete this file.
   color: var(--text-normal);
   font-size: var(--font-ui-medium);
   line-height: var(--line-height-tight);
-  flex: 1 1 auto;
+  display: inline;
+  padding-right: 2em;
 }
 .character-builder-setting-control {
   flex: 1 1 auto;
@@ -302,4 +303,11 @@ If your plugin does not need CSS, delete this file.
 
 .character-builder-breadcrumb-tab-title:hover {
     background-color: rgba(255, 255, 255, 0.05);
+}
+.character-builder-setting-control.character-builder-setting-text-area-control {
+    justify-content: flex-start;
+}
+.character-builder-setting-control.character-builder-setting-text-area-control textarea {
+    min-width: 200px;
+    min-height: 90px;
 }

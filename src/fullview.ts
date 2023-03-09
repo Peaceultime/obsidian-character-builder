@@ -4,7 +4,7 @@ import { ItemView, Setting, Notice } from 'obsidian';
 
 import { CharacterBuilderCache as Cache } from 'src/cache.ts';
 import { CharacterBuilderSettings as Settings } from 'src/settings.ts';
-import { Dropdown, TextField, Slider } from 'src/components.ts';
+import { Dropdown, TextField, TextArea, Slider } from 'src/components.ts';
 import { HTMLStatElement } from 'src/htmlelements.ts';
 import { print } from 'src/builder.ts';
 import { Substats, Stat, StatBlock, StatBlockNames, Metadata } from 'src/metadata.ts';
@@ -12,12 +12,12 @@ import { Substats, Stat, StatBlock, StatBlockNames, Metadata } from 'src/metadat
 export class CharacterBuilderFullView extends ItemView {
 	plugin: any;
 	metadata: Metadata;
-	settings: Settings;
 	file: TFile;
 
 	constructor(leaf: WorkspaceLeaf, plugin: any) {
 		super(leaf);
 		this.plugin = plugin;
+		this.navigation = true;
 	}
 
 	getViewType(): string {
@@ -25,7 +25,7 @@ export class CharacterBuilderFullView extends ItemView {
 	}
 
 	getDisplayText(): string {
-		return `${!!this.file ? 'Modification' : 'Création'} de ${this.metadata?.name || 'personnage'}`;
+		return `${!!this.file ? 'Modification' : 'Création'} de ${this.metadata?.name || 'personnage'} - ${this.contentEl.querySelector(".character-builder-breadcrumb-tab:not(.tab-hidden)")?.children[0]?.textContent || 'Base du personnage'}`;
 	}
 
 	async onOpen(): void {
@@ -54,6 +54,11 @@ export class CharacterBuilderFullView extends ItemView {
 		}
 		this.metadata.type = "character";
 
+		this.refreshRender();
+	}
+
+	async refreshRender()
+	{
 		const settings = Cache.cache("settings");
 		let splitElmt;
 		const {contentEl} = this;
@@ -64,7 +69,7 @@ export class CharacterBuilderFullView extends ItemView {
 		const breadcrumb = contentEl.createDiv({ cls: "character-builder-breadcrumb-container" });
 		const tabContainer = contentEl.createDiv({ cls: "character-builder-tab-container" });
 
-		const baseTab = this.tab(breadcrumb, tabContainer, "Base du personnage", true);
+		const baseTab = this.tab(breadcrumb, tabContainer, "Base du personnage", true, () => this.updateDisplay());
 
 		splitElmt = baseTab.createDiv({ cls: "character-builder-splitter-container" });
 		new TextField(splitElmt, "Nom de personnage").link(this.metadata, "name").onChange(value => this.updateDisplay());
@@ -126,11 +131,11 @@ export class CharacterBuilderFullView extends ItemView {
 		});
 		const totalContainer = statBlockContainer.createDiv({ cls: 'character-builder-total-stats' });
 		totalContainer.createEl("span", { text: 'Restant: ' });
-		totalElmt = totalContainer.createEl("strong", { text: this.remaining });
+		totalElmt = totalContainer.createEl("strong", { text: this.remaining?.toString() });
 
 		splitElmt = splitContainer.createDiv();
 		const armorSlider = new Slider(splitElmt, `Armure max`).desc(`L'armure maximum determine le nombre de talents disponibles au niveau 1.`).range(2, 6, 2);
-		const talentText = new TextField(splitElmt).name(`Talents au niveau 1`).disable(true).value(this.metadata.talents).class("text-field-no-editor");
+		const talentText = new TextField(splitElmt, `Talents au niveau 1`).disable(true).value(this.metadata.talents).class("text-field-no-editor");
 		armorSlider.onChange(value => {
 			this.metadata.armor = value;
 			this.metadata.talents = 6 - value / 2;
@@ -138,7 +143,9 @@ export class CharacterBuilderFullView extends ItemView {
 			talentText.value(6 - value / 2);
 		}).value(2).tooltip(true);
 
-		const raceTab = this.tab(breadcrumb, tabContainer, "Race");
+		new TextArea(baseTab, `Backstory`).link(this.metadata, `flavoring`);
+
+		const raceTab = this.tab(breadcrumb, tabContainer, "Race", false, () => this.updateDisplay());
 
 		const raceGroup = this.group(raceTab, "Race du personnage");
 		const raceDropdown = new Dropdown(raceGroup, "Race").source(this.metadata, `races/{setting}/content`).link(this.metadata, "race");
@@ -156,7 +163,7 @@ export class CharacterBuilderFullView extends ItemView {
 			featureDropdown.update();
 		});
 
-		const levelsTab = this.tab(breadcrumb, tabContainer, "Niveaux");
+		const levelsTab = this.tab(breadcrumb, tabContainer, "Niveaux", false, () => this.updateDisplay());
 
 
 		new Setting(contentEl).addButton(btn => btn.setButtonText("Suivant").onClick(e => {
@@ -173,6 +180,8 @@ export class CharacterBuilderFullView extends ItemView {
 				breadcrumb.children[i].classList.add("tab-hidden");
 			tabContainer.children[idx+1].classList.remove("tab-hidden");
 			breadcrumb.children[idx+1].classList.remove("tab-hidden");
+
+			this.updateDisplay();
 		})).addButton(btn => btn.setButtonText(this.file ? 'Modifier' : 'Créer').onClick(() => {
 			if(this.metadata.name.trim() === '')
 			{
@@ -180,7 +189,7 @@ export class CharacterBuilderFullView extends ItemView {
 				return;
 			}
 
-			this.create.bind(this)
+			this.create();
 		}));
 
 		this.updateDisplay();
@@ -189,7 +198,7 @@ export class CharacterBuilderFullView extends ItemView {
 	updateDisplay(): void {
 		this.app.workspace.updateTitle();
 		this.leaf.updateHeader();
-		this.titleEl.setText(this.getDisplayText())
+		this.titleEl.setText(this.getDisplayText());
 	}
 
 	async onClose(): void {
@@ -267,7 +276,7 @@ export class CharacterBuilderFullView extends ItemView {
 		return container.createDiv({cls: "character-builder-group-content"});
 	}
 
-	tab(breadcrumb: HTMLElement, elmt: HTMLElement, title: string, active: boolean = false): HTMLDivElement
+	tab(breadcrumb: HTMLElement, elmt: HTMLElement, title: string, active: boolean = false, cb?: () => void = undefined): HTMLDivElement
 	{
 		const tab = elmt.createDiv({ cls: ["character-builder-tab", "tab-hidden"] });
 		const titleElmt = breadcrumb.createDiv({ cls: ["character-builder-breadcrumb-tab", "tab-hidden"] }).createSpan({ text: title, cls: "character-builder-breadcrumb-tab-title" });
@@ -278,6 +287,8 @@ export class CharacterBuilderFullView extends ItemView {
 				breadcrumb.children[i].classList.add("tab-hidden");
 			tab.classList.remove("tab-hidden");
 			titleElmt.parentElement.classList.remove("tab-hidden");
+
+			cb && cb();
 		});
 
 		if(active)
