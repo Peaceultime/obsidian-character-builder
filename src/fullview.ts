@@ -25,7 +25,7 @@ export class CharacterBuilderFullView extends ItemView {
 	}
 
 	getDisplayText(): string {
-		return `Création de personnage`;
+		return `${!!this.file ? 'Modification' : 'Création'} de ${this.metadata?.name || 'personnage'}`;
 	}
 
 	async onOpen(): void {
@@ -64,35 +64,19 @@ export class CharacterBuilderFullView extends ItemView {
 		const breadcrumb = contentEl.createDiv({ cls: "character-builder-breadcrumb-container" });
 		const tabContainer = contentEl.createDiv({ cls: "character-builder-tab-container" });
 
-		const raceTab = this.tab(breadcrumb, tabContainer, "Base du personnage", true);
+		const baseTab = this.tab(breadcrumb, tabContainer, "Base du personnage", true);
 
-		splitElmt = raceTab.createDiv({ cls: "character-builder-splitter-container" });
-		new TextField(splitElmt, "Nom de personnage").link(this.metadata, "name");
+		splitElmt = baseTab.createDiv({ cls: "character-builder-splitter-container" });
+		new TextField(splitElmt, "Nom de personnage").link(this.metadata, "name").onChange(value => this.updateDisplay());
 		const settingDropdown = new Dropdown(splitElmt, "Univers", false).source(this.metadata, `races`).link(this.metadata, "setting");
 
-		const raceGroup = this.group(raceTab, "Race du personnage", true);
-		const raceDropdown = new Dropdown(raceGroup, "Race").source(this.metadata, `races/{setting}/content`).link(this.metadata, "race");
-		splitElmt = raceGroup.createDiv({ cls: "character-builder-splitter-container" });
-		const subraceDropdown = new Dropdown(splitElmt, "Sous-race").source(this.metadata, `races/{setting}/content/{race}/subraces`).link(this.metadata, "subrace");
-		const featureDropdown = new Dropdown(splitElmt, "Bonus racial").source(this.metadata, `races/{setting}/content/{race}/features`).link(this.metadata, "feature");
-
-		settingDropdown.onChange(value => {
-			raceDropdown.update();
-			subraceDropdown.update();
-			featureDropdown.update();
-		});
-		raceDropdown.onChange(value => {
-			subraceDropdown.update();
-			featureDropdown.update();
-		});
-
-		const splitContainer = raceTab.createDiv({ cls: "character-builder-splitter-container" });
+		const splitContainer = baseTab.createDiv({ cls: "character-builder-splitter-container" });
 		const statBlockContainer = splitContainer.createDiv({ cls: "character-builder-statblock-container" });
 
 		const stats = Object.keys(this.metadata.statBlock);
 		let totalElmt;
 		this.remaining = parseInt(settings.statAmount);
-		this.table(statBlockContainer, Object.values(StatBlockNames), ["Statistique", "Bonus racial", "Réussite normale", "Réussite haute", "Réussite extrème"], (elmt, col, row) => {
+		this.table(statBlockContainer, Object.values(StatBlockNames), ["Statistique", "Réussite normale", "Réussite haute", "Réussite extrème"], (elmt, col, row) => {
 			const stat = this.metadata.statBlock[stats[col]];
 			const self = this;
 			switch(row)
@@ -118,9 +102,9 @@ export class CharacterBuilderFullView extends ItemView {
 						stat.initial = newVal;
 
 						try {
-							this.component.parentElement.parentElement.parentElement.children[2].children[col + 1].textContent = stat.initial + stat.bonus;
-							this.component.parentElement.parentElement.parentElement.children[3].children[col + 1].textContent = Math.floor((stat.initial + stat.bonus) / 2);
-							this.component.parentElement.parentElement.parentElement.children[4].children[col + 1].textContent = Math.floor((stat.initial + stat.bonus) / 5);
+							this.component.parentElement.parentElement.parentElement.children[1].children[col + 1].textContent = stat.initial + stat.bonus;
+							this.component.parentElement.parentElement.parentElement.children[2].children[col + 1].textContent = Math.floor((stat.initial + stat.bonus) / 2);
+							this.component.parentElement.parentElement.parentElement.children[3].children[col + 1].textContent = Math.floor((stat.initial + stat.bonus) / 5);
 							totalElmt.textContent = self.remaining;
 						} catch(e) {}
 
@@ -128,26 +112,12 @@ export class CharacterBuilderFullView extends ItemView {
 					}).value(stat.initial || settings.minStat);
 					return;
 				case 1:
-					new HTMLStatElement(elmt, -6, 6, 3).change(function (oldVal, newVal) {
-						if(oldVal === newVal)
-							return;
-
-						stat.bonus = newVal;
-
-						try {
-							this.component.parentElement.parentElement.parentElement.children[2].children[col + 1].textContent = stat.initial + stat.bonus;
-							this.component.parentElement.parentElement.parentElement.children[3].children[col + 1].textContent = Math.floor((stat.initial + stat.bonus) / 2);
-							this.component.parentElement.parentElement.parentElement.children[4].children[col + 1].textContent = Math.floor((stat.initial + stat.bonus) / 5);
-						} catch(e) {}
-					}).value(stat.bonus || 0);
-					return;
-				case 2:
 					elmt.createEl("i", { text: stat.initial + stat.bonus });
 					return;
-				case 3:
+				case 2:
 					elmt.createEl("i", { text: Math.floor((stat.initial + stat.bonus) / 2) });
 					return;
-				case 4:
+				case 3:
 					elmt.createEl("i", { text: Math.floor((stat.initial + stat.bonus) / 5) });
 					return;
 				default:
@@ -168,6 +138,24 @@ export class CharacterBuilderFullView extends ItemView {
 			talentText.value(6 - value / 2);
 		}).value(2).tooltip(true);
 
+		const raceTab = this.tab(breadcrumb, tabContainer, "Race");
+
+		const raceGroup = this.group(raceTab, "Race du personnage");
+		const raceDropdown = new Dropdown(raceGroup, "Race").source(this.metadata, `races/{setting}/content`).link(this.metadata, "race");
+		splitElmt = raceGroup.createDiv({ cls: "character-builder-splitter-container" });
+		const subraceDropdown = new Dropdown(splitElmt, "Sous-race").source(this.metadata, `races/{setting}/content/{race}/subraces`).link(this.metadata, "subrace");
+		const featureDropdown = new Dropdown(splitElmt, "Bonus racial").source(this.metadata, `races/{setting}/content/{race}/features`).link(this.metadata, "feature");
+
+		settingDropdown.onChange(value => {
+			raceDropdown.update();
+			subraceDropdown.update();
+			featureDropdown.update();
+		});
+		raceDropdown.onChange(value => {
+			subraceDropdown.update();
+			featureDropdown.update();
+		});
+
 		const levelsTab = this.tab(breadcrumb, tabContainer, "Niveaux");
 
 
@@ -185,7 +173,23 @@ export class CharacterBuilderFullView extends ItemView {
 				breadcrumb.children[i].classList.add("tab-hidden");
 			tabContainer.children[idx+1].classList.remove("tab-hidden");
 			breadcrumb.children[idx+1].classList.remove("tab-hidden");
-		})).addButton(btn => btn.setButtonText(this.file ? 'Modifier' : 'Créer').onClick(this.create.bind(this)));
+		})).addButton(btn => btn.setButtonText(this.file ? 'Modifier' : 'Créer').onClick(() => {
+			if(this.metadata.name.trim() === '')
+			{
+				new Notice("Veuillez saisir un nom pour créer la fiche de personnage.");
+				return;
+			}
+
+			this.create.bind(this)
+		}));
+
+		this.updateDisplay();
+	}
+
+	updateDisplay(): void {
+		this.app.workspace.updateTitle();
+		this.leaf.updateHeader();
+		this.titleEl.setText(this.getDisplayText())
 	}
 
 	async onClose(): void {
@@ -194,7 +198,7 @@ export class CharacterBuilderFullView extends ItemView {
 
 	async create(): void {
 		const settings = Cache.cache("settings");
-		const filepath = `${settings.charactersFolder}/${this.metadata.name}.md`;
+		const filepath = `${this.file ? this.file.parent.path : settings.charactersFolder}/${this.metadata.name}.md`;
 		let templateData;
 		try {
 			templateData = await this.app.vault.read(this.app.vault.getAbstractFileByPath(settings.characterTemplate));
@@ -219,7 +223,7 @@ export class CharacterBuilderFullView extends ItemView {
 		const content = `---\n${JSON.stringify(this.metadata)}\n---\n${print(this.metadata, templateData)}`;
 
 		let file;
-		if(this.file && filepath !== this.file.path)
+		if(this.file && this.file.basename !== this.metadata.name)
 		{
 			await this.app.vault.delete(this.file);
 			file = await this.app.vault.create(filepath, content);
@@ -263,7 +267,7 @@ export class CharacterBuilderFullView extends ItemView {
 		return container.createDiv({cls: "character-builder-group-content"});
 	}
 
-	tab(breadcrumb: HTMLElement, elmt: HTMLElement, title: string, active: boolean): HTMLDivElement
+	tab(breadcrumb: HTMLElement, elmt: HTMLElement, title: string, active: boolean = false): HTMLDivElement
 	{
 		const tab = elmt.createDiv({ cls: ["character-builder-tab", "tab-hidden"] });
 		const titleElmt = breadcrumb.createDiv({ cls: ["character-builder-breadcrumb-tab", "tab-hidden"] }).createSpan({ text: title, cls: "character-builder-breadcrumb-tab-title" });
