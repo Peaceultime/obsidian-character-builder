@@ -250,3 +250,56 @@ If your plugin does not need CSS, delete this file.
     text-align: right;
     font-weight: bold;
 }
+
+.character-builder-tab {
+    display: block;
+}
+
+.character-builder-tab.tab-hidden {
+    display: none;
+}
+
+.character-builder-breadcrumb-container {
+    position: absolute;
+    top: 5.5em;
+    right: 3em;
+    display: flex;
+}
+
+.character-builder-breadcrumb-tab {
+    position: relative;
+}
+
+.character-builder-breadcrumb-tab-title {
+    margin: 0 1em;
+    padding: .5em 1em;
+    cursor: pointer;
+    font-variant: var(--h4-variant);
+    font-size: var(--size-4-4);
+    letter-spacing: 0.010em;
+    color: var(--h4-color);
+    font-weight: var(--h4-weight);
+    font-style: var(--h4-style);
+    font-family: var(--h4-font);
+    transition: background-color .5s ease;
+}
+
+.character-builder-breadcrumb-tab:not(:last-child):after {
+    content: "";
+    background-color: rgba(255, 255, 255, 0.1);
+    position: absolute;
+    right: -0.8em;
+    width: 1.6em;
+    height: 3px;
+    margin: 9px 0;
+    border-radius: 2px;
+    cursor: initial;
+}
+
+.character-builder-breadcrumb-tab.tab-hidden .character-builder-breadcrumb-tab-title {
+    font-weight: normal;
+}
+
+.character-builder-breadcrumb-tab-title:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}

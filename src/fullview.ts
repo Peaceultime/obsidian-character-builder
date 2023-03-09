@@ -61,12 +61,16 @@ export class CharacterBuilderFullView extends ItemView {
 		contentEl.empty();
 
 		contentEl.createEl("h2", { text: "Création de personnage" });
+		const breadcrumb = contentEl.createDiv({ cls: "character-builder-breadcrumb-container" });
+		const tabContainer = contentEl.createDiv({ cls: "character-builder-tab-container" });
 
-		splitElmt = contentEl.createDiv({ cls: "character-builder-splitter-container" });
+		const raceTab = this.tab(breadcrumb, tabContainer, "Base du personnage", true);
+
+		splitElmt = raceTab.createDiv({ cls: "character-builder-splitter-container" });
 		new TextField(splitElmt, "Nom de personnage").link(this.metadata, "name");
 		const settingDropdown = new Dropdown(splitElmt, "Univers", false).source(this.metadata, `races`).link(this.metadata, "setting");
 
-		const raceGroup = this.group(contentEl, "Race du personnage", true);
+		const raceGroup = this.group(raceTab, "Race du personnage", true);
 		const raceDropdown = new Dropdown(raceGroup, "Race").source(this.metadata, `races/{setting}/content`).link(this.metadata, "race");
 		splitElmt = raceGroup.createDiv({ cls: "character-builder-splitter-container" });
 		const subraceDropdown = new Dropdown(splitElmt, "Sous-race").source(this.metadata, `races/{setting}/content/{race}/subraces`).link(this.metadata, "subrace");
@@ -82,7 +86,7 @@ export class CharacterBuilderFullView extends ItemView {
 			featureDropdown.update();
 		});
 
-		const splitContainer = contentEl.createDiv({ cls: "character-builder-splitter-container" });
+		const splitContainer = raceTab.createDiv({ cls: "character-builder-splitter-container" });
 		const statBlockContainer = splitContainer.createDiv({ cls: "character-builder-statblock-container" });
 
 		const stats = Object.keys(this.metadata.statBlock);
@@ -164,7 +168,24 @@ export class CharacterBuilderFullView extends ItemView {
 			talentText.value(6 - value / 2);
 		}).value(2).tooltip(true);
 
-		new Setting(contentEl).addButton(btn => btn.setButtonText(this.file ? 'Modifier' : 'Créer').onClick(this.create.bind(this)));
+		const levelsTab = this.tab(breadcrumb, tabContainer, "Niveaux");
+
+
+		new Setting(contentEl).addButton(btn => btn.setButtonText("Suivant").onClick(e => {
+			const currentBreadcrumb = breadcrumb.querySelector(".character-builder-breadcrumb-tab:not(.tab-hidden)");
+			const idx = [...breadcrumb.children].findIndex(e => e === currentBreadcrumb);
+
+			if(idx === -1 || idx + 1 === breadcrumb.children.length)
+				return;
+
+
+			for(let i = 0; i < statBlockContainer.children.length; i++)
+				tabContainer.children[i].classList.add("tab-hidden");
+			for(let i = 0; i < breadcrumb.children.length; i++)
+				breadcrumb.children[i].classList.add("tab-hidden");
+			tabContainer.children[idx+1].classList.remove("tab-hidden");
+			breadcrumb.children[idx+1].classList.remove("tab-hidden");
+		})).addButton(btn => btn.setButtonText(this.file ? 'Modifier' : 'Créer').onClick(this.create.bind(this)));
 	}
 
 	async onClose(): void {
@@ -240,6 +261,32 @@ export class CharacterBuilderFullView extends ItemView {
 			titleDiv.parentElement.classList.toggle("character-builder-group-collapsed");
 
 		return container.createDiv({cls: "character-builder-group-content"});
+	}
+
+	tab(breadcrumb: HTMLElement, elmt: HTMLElement, title: string, active: boolean): HTMLDivElement
+	{
+		const tab = elmt.createDiv({ cls: ["character-builder-tab", "tab-hidden"] });
+		const titleElmt = breadcrumb.createDiv({ cls: ["character-builder-breadcrumb-tab", "tab-hidden"] }).createSpan({ text: title, cls: "character-builder-breadcrumb-tab-title" });
+		titleElmt.addEventListener("click", () => {
+			for(let i = 0; i < elmt.children.length; i++)
+				elmt.children[i].classList.add("tab-hidden");
+			for(let i = 0; i < breadcrumb.children.length; i++)
+				breadcrumb.children[i].classList.add("tab-hidden");
+			tab.classList.remove("tab-hidden");
+			titleElmt.parentElement.classList.remove("tab-hidden");
+		});
+
+		if(active)
+		{
+			for(let i = 0; i < elmt.children.length; i++)
+				elmt.children[i].classList.add("tab-hidden");
+			for(let i = 0; i < breadcrumb.children.length; i++)
+				breadcrumb.children[i].classList.add("tab-hidden");
+			tab.classList.remove("tab-hidden");
+			titleElmt.parentElement.classList.remove("tab-hidden");
+		}
+
+		return tab;
 	}
 
 	table(elmt: HTMLElement, header: string[], descriptors: string[], cb: (elmt: HTMLElement, col: number, row: number) => void): HTMLElement
