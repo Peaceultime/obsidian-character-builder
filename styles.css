@@ -135,10 +135,13 @@ If your plugin does not need CSS, delete this file.
 .character-builder-setting {
   display: flex;
   flex-direction: column;align-items: stretch;
-  padding: 0.75em 0 0.75em 0;
+  padding: 0.75em 1em 0.75em 1em;
   border-top: 1px solid var(--background-modifier-border);
-  /* Add extra space for setting heading if it starts a new section */
 }
+.character-builder-splitter-container .character-builder-setting {
+    padding: 0.75em 0 0.75em 0;
+}
+/* Add extra space for setting heading if it starts a new section */
 .character-builder-setting + .character-builder-setting-heading {
   margin-top: 0.75em;
 }
@@ -167,7 +170,9 @@ If your plugin does not need CSS, delete this file.
   font-weight: var(--font-normal);
 }
 .character-builder-setting-info {
-  display: flex;align-items: baseline;
+  display: flex;
+  align-items: baseline;
+  position: relative;
 }
 .character-builder-setting-description {
   flex: 1 1 auto;
@@ -310,4 +315,30 @@ If your plugin does not need CSS, delete this file.
 .character-builder-setting-control.character-builder-setting-text-area-control textarea {
     min-width: 200px;
     min-height: 90px;
+}
+
+.character-builder-setting.invalid .character-builder-setting-info::after {
+    content: "";
+    display: block;
+    height: 1px;
+    background-color: var(--color-accent);
+    position: absolute;
+    left: 6px;
+    bottom: -6px;
+    width: calc(100% - 12px);
+    animation: .7s error_slide;
+}
+
+@keyframes error_slide {
+    from {
+        width: 0px;
+    }
+
+    to {
+        width: calc(100% - 12px);
+    }
+}
+
+.invalid input, .invalid select, .invalid textarea {
+    border-color: var(--color-accent) !important;
 }

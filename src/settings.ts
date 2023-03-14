@@ -24,15 +24,18 @@ export interface SaveData {
 	views: ViewSaveData[];
 }
 
-export const DEFAULT_SETTINGS: CharacterBuilderSettings = {
-	charactersFolder: '99. Personnages',
-	racesFolder: '3. Races/Liste des Races',
-	talentsFolder: '2. Classes/2. Talents',
-	characterTemplate: '99. Personnages/99. Template.md',
-	maxStat: 60,
-	maxInitialStat: 45,
-	minStat: 15,
-	statAmount: 245,
+export const DEFAULT_SETTINGS: SaveData = {
+	views: [],
+	settings: {
+		charactersFolder: '99. Personnages',
+		racesFolder: '3. Races/Liste des Races',
+		talentsFolder: '2. Classes/2. Talents',
+		characterTemplate: '99. Personnages/99. Template.md',
+		maxStat: 60,
+		maxInitialStat: 45,
+		minStat: 15,
+		statAmount: 245,
+	}
 };
 
 export class CharacterBuilderSettingTab extends PluginSettingTab {
@@ -54,7 +57,6 @@ export class CharacterBuilderSettingTab extends PluginSettingTab {
 		new TextField(containerEl, "Dossier des personnages", false).link(this.plugin.savedData.settings, "charactersFolder").onChange(value => this.dirty = true);
 		new TextField(containerEl, "Dossier des races", false).link(this.plugin.savedData.settings, "racesFolder").onChange(value => this.dirty = true);
 		new TextField(containerEl, "Dossier des talents", false).link(this.plugin.savedData.settings, "talentsFolder").onChange(value => this.dirty = true);
-
 
 		containerEl.createEl('h2', {text: 'Modèles'});
 

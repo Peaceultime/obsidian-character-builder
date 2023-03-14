@@ -60,8 +60,36 @@ export abstract class VisualComponent {
 
 		return this;
 	}
+	validate(): boolean
+	{
+		this.setting.classList.remove("invalid");
+		const value = this.component.getValue();
+		if(value !== '' && value !== undefined && value !== null && this.compElmt.querySelector("input,select,textarea")?.checkValidity())
+			return true;
 
-	abstract onChange(cb): VisualComponent;
+		this.setting.classList.add("invalid");
+		return false;
+	}
+	required(tab: Tab): VisualComponent
+	{
+		tab.required(this);
+
+		return this;
+	}
+
+	onChange(cb): VisualComponent
+	{
+		this.component?.onChange(value => {
+			this.setting.classList.remove("invalid");
+
+			if(this.linkSrc && this.linkedProperty)
+				this.linkSrc[this.linkedProperty] = value;
+
+			cb(value);
+		});
+
+		return this;
+	}
 }
 export class Dropdown extends VisualComponent {
 	src: string;
@@ -92,8 +120,7 @@ export class Dropdown extends VisualComponent {
 			this.component.selectEl.remove(i);
 
 		let match, target = this.src;
-		while((match = /{(.+?)}/g.exec(target)) !== null)
-			target = target.replace(match[0], this.dataSource[match[1]]);
+		target = target.replace(/{(.+?)}/g, (_, m1) => this.dataSource[m1]);
 		this.cache = Cache.cache(target);
 
 		if(!this.src || !this.cache)
@@ -115,6 +142,8 @@ export class Dropdown extends VisualComponent {
 	onChange(cb): Dropdown
 	{
 		this.component?.onChange(value => {
+			this.setting.classList.remove("invalid");
+			
 			if(this.hasDynamicDescription)
 				this._changeDesc(value);
 
@@ -144,17 +173,6 @@ export class TextField extends VisualComponent {
 		this.component = new TextComponent(this.compElmt);
 		this.onChange(value => {});
 	}
-	onChange(cb): TextField
-	{
-		this.component?.onChange(value => {
-			if(this.linkSrc && this.linkedProperty)
-				this.linkSrc[this.linkedProperty] = value;
-
-			cb(value);
-		});
-
-		return this;
-	}
 }
 export class TextArea extends VisualComponent {
 	constructor(parent: HTMLElement, name: string)
@@ -163,17 +181,6 @@ export class TextArea extends VisualComponent {
 		this.compElmt.classList.add("character-builder-setting-text-area-control");
 		this.component = new TextAreaComponent(this.compElmt);
 		this.onChange(value => {});
-	}
-	onChange(cb): TextField
-	{
-		this.component?.onChange(value => {
-			if(this.linkSrc && this.linkedProperty)
-				this.linkSrc[this.linkedProperty] = value;
-
-			cb(value);
-		});
-
-		return this;
 	}
 }
 export class Slider extends VisualComponent {

@@ -70,6 +70,9 @@ export default class CharacterBuilder extends Plugin {
 
 	async loadSavedViews() {
 		await this.loading;
+		if(!this.savedData || !this.savedData.views)
+			return;
+
 		for(let i = 0; i < this.savedData.views.length; i++)
 		{
 			const view = this.savedData.views[i];
@@ -81,7 +84,7 @@ export default class CharacterBuilder extends Plugin {
 				leaf.view.file = file;
 			}
 			leaf.view.metadata = view.metadata;
-			leaf.view.refreshRender();
+			leaf.view.refresh(true);
 			this.app.workspace.revealLeaf(leaf);
 		}
 	}
@@ -153,8 +156,8 @@ export default class CharacterBuilder extends Plugin {
 	async loadPluginData(): void {
 		const data = await this.loadData();
 
-		this.settings = Cache.cache("settings", Object.assign({}, DEFAULT_SETTINGS, data.settings));
-		this.savedData = data;
+		this.savedData = Object.assign({}, DEFAULT_SETTINGS, data);
+		this.settings = Cache.cache("settings", this.savedData.settings);
 	}
 
 	async savePluginData(): void {
