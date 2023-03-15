@@ -40,6 +40,7 @@ export class CharacterBuilderFullView extends ItemView {
 		loading.createSpan({ cls: "character-builder-loading-title" });
 		loading.createSpan({ cls: "character-builder-loading-bar" });
 
+		this.plugin.addTab(this);
 		this.plugin.loading.then(this.render.bind(this));
 	}
 
@@ -98,7 +99,7 @@ export class CharacterBuilderFullView extends ItemView {
 	}
 
 	async onClose(): void {
-
+		this.plugin.removeTab(this);
 	}
 
 	async create(): void {

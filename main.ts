@@ -6,10 +6,12 @@ import { VIEW_TYPE_CHARACTER_BUILDER_FULL, CharacterBuilderFullView as FullView 
 
 export default class CharacterBuilder extends Plugin {
 	settings: Settings;
+	tabs: CharacterBuilderFullView[];
 
 	loading: Promise<void>;
 
 	async onload(): void {
+		this.tabs = [];
 		await this.loadPluginData();
 		if(!this.app.metadataCache.initialized)
 		{
@@ -46,6 +48,9 @@ export default class CharacterBuilder extends Plugin {
 				{
 					menu.addSeparator().addItem(item => {
 						item.setTitle("Modifier le personnage").setIcon("calculator").onClick(async () => {
+							if(this.tabs.find(e => e.file === file))
+								return new Notice("Ce personnage est déjà en cours d'edition");
+
 							if(!leaf)
 								leaf = this.app.workspace.getLeaf(true);
 							await leaf.setViewState({ type: VIEW_TYPE_CHARACTER_BUILDER_FULL, active: true });
@@ -107,5 +112,13 @@ export default class CharacterBuilder extends Plugin {
 		this.savedData.settings = this.settings;
 		await this.saveData(this.savedData);
 		await initCache(this.app);
+	}
+
+	addTab(view: CharacterBuilderFullView): void {
+		this.tabs.includes(view) || this.tabs.push(view);
+	}
+
+	removeTab(view: CharacterBuilderFullView): void {
+		this.tabs.includes(view) && this.tabs.splice(this.tabs.findIndex(e => e === view), 1);
 	}
 }
