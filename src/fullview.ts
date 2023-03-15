@@ -15,13 +15,13 @@ export class CharacterBuilderFullView extends ItemView {
 	plugin: any;
 	metadata: Metadata;
 	file: TFile;
+	name: string;
 
 	tabContainer: TabContainer;
 
 	constructor(leaf: WorkspaceLeaf, plugin: any) {
 		super(leaf);
 		this.plugin = plugin;
-		this.navigation = true;
 	}
 
 	getViewType(): string {
@@ -29,7 +29,7 @@ export class CharacterBuilderFullView extends ItemView {
 	}
 
 	getDisplayText(): string {
-		return `${!!this.file ? 'Modification' : 'Création'} de ${this.metadata?.name || 'personnage'} - ${this.contentEl.querySelector(".character-builder-breadcrumb-tab:not(.tab-hidden)")?.children[0]?.textContent || 'Base du personnage'}`;
+		return `${!!this.file ? 'Modification' : 'Création'} de ${this.name || this.metadata?.name || 'personnage'} - ${this.contentEl.querySelector(".character-builder-breadcrumb-tab:not(.tab-hidden)")?.children[0]?.textContent || 'Base du personnage'}`;
 	}
 
 	async onOpen(): void {
@@ -52,11 +52,10 @@ export class CharacterBuilderFullView extends ItemView {
 		contentEl.empty();
 		contentEl.createEl("h2", { text: "Création de personnage" });
 
-		const settings = Cache.cache("settings");
-		this.tabContainer = new TabContainer(contentEl);
-		const baseTab = this.tabContainer.add(BaseTab, {title: "Base du personnage", metadata: this.metadata, settings: settings}).onOpen(this.updateDisplay.bind(this));
-		const raceTab = this.tabContainer.add(RaceTab, {title: "Race", metadata: this.metadata, settings: settings}).onOpen(this.updateDisplay.bind(this));
-		const levelsTab = this.tabContainer.add(LevelTab, {title: "Niveaux", metadata: this.metadata, settings: settings}).onOpen(this.updateDisplay.bind(this));
+		this.tabContainer = new TabContainer(contentEl).cache(this);
+		const baseTab = this.tabContainer.add(BaseTab, "Base du personnage").onOpen(() => this.refresh());
+		const raceTab = this.tabContainer.add(RaceTab, "Race").onOpen(() => this.refresh());
+		const levelsTab = this.tabContainer.add(LevelTab, "Niveaux").onOpen(() => this.refresh());
 
 		new Setting(contentEl).addButton(btn => btn.setButtonText("Suivant").onClick(() => this.tabContainer.next())).addButton(btn => btn.setButtonText(this.file ? 'Modifier' : 'Créer').onClick(() => {
 			if(this.metadata.name.trim() === '')
@@ -72,19 +71,21 @@ export class CharacterBuilderFullView extends ItemView {
 	refresh(force: boolean = false): void
 	{
 		this.tabContainer.render(force);
+		this.updateDisplay();
 	}
 
 	openData(file: TFile): void {
 		if(file)
 		{
 			this.file = file;
-			this.metadata = this.app.metadataCache.getFileCache(file).frontmatter;
+			this.metadata = JSON.parse(JSON.stringify(this.app.metadataCache.getFileCache(file).frontmatter));
 			this.metadata.position = undefined;
+			this.name = this.metadata.name;
 		}
 		else
 		{
 			this.metadata = {};
-			this.metadata.statBlock = Object.assign({}, StatBlock);
+			this.metadata.statBlock = JSON.parse(JSON.stringify(StatBlock));
 			this.metadata.substats = {};
 		}
 		this.metadata.type = "character";

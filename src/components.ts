@@ -144,7 +144,7 @@ export class Dropdown extends VisualComponent {
 		this.component?.onChange(value => {
 			this.setting.classList.remove("invalid");
 			
-			if(this.hasDynamicDescription)
+			if(this.hasDynamicDescription && this.cache)
 				this._changeDesc(value);
 
 			if(this.linkedProperty !== undefined)
@@ -160,9 +160,9 @@ export class Dropdown extends VisualComponent {
 		this.desc("");
 		if(value === undefined || value === "")
 			return;
-		else if(this.cache[value].hasOwnProperty("content"))
+		else if(this.cache[value] && this.cache[value].hasOwnProperty("content"))
 			MarkdownPreviewView.renderMarkdown(this.cache[value].content, this.descElmt);
-		else
+		else if(this.cache[value])
 			MarkdownPreviewView.renderMarkdown(this.cache[value], this.descElmt);
 	}
 }

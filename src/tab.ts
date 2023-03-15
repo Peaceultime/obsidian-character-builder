@@ -9,14 +9,13 @@ export class Tab {
 	breadcrumb: HTMLSpanElement;
 	cb: (idx: number, title: string) => void;
 	dirty: boolean = true;
-	constructor(container: TabContainer, options: string) {
+	constructor(container: TabContainer, title: string) {
 		this.container = container;
-		this.options = options;
-		this.title = options.title;
+		this.title = title;
 		this.requiredList = [];
 
 		this.content = container.container.createDiv({ cls: ["character-builder-tab", "tab-hidden"] });
-		this.breadcrumb = container.breadcrumb.createDiv({ cls: ["character-builder-breadcrumb-tab", "tab-hidden"] }).createSpan({ text: options.title, cls: "character-builder-breadcrumb-tab-title" });
+		this.breadcrumb = container.breadcrumb.createDiv({ cls: ["character-builder-breadcrumb-tab", "tab-hidden"] }).createSpan({ text: title, cls: "character-builder-breadcrumb-tab-title" });
 	}
 	required(fields: VisualComponent | VisualComponent[]): Tab {
 		if(!Array.isArray(fields))
@@ -54,6 +53,10 @@ export class Tab {
 
 		return this;
 	}
+	request(property: string): any {
+		if(this.container.dataCache && this.container.dataCache.hasOwnProperty(property))
+			return this.container.dataCache[property];
+	}
 	abstract render();
 }
 export class TabContainer {
@@ -61,6 +64,8 @@ export class TabContainer {
 	container: HTMLDivElement;
 	tabs: Tab[];
 	active: number;
+
+	dataCache: any;
 	constructor(elmt: HTMLElement) {
 		this.breadcrumb = elmt.createDiv({ cls: "character-builder-breadcrumb-container" });
 		this.container = elmt.createDiv({ cls: "character-builder-tab-container" });
@@ -128,5 +133,11 @@ export class TabContainer {
 		const tab = this.tabs[this.active];
 		if(tab.dirty || force)
 			tab.render();
+	}
+
+	cache(data: any): TabContainer
+	{
+		this.dataCache = data;
+		return this;
 	}
 }

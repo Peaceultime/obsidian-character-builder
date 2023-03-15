@@ -2,39 +2,37 @@ import { Dropdown, TextField, TextArea, Slider } from 'src/components.ts';
 import { Tab, TabContainer } from 'src/tab.ts';
 import { Substats, Stat, StatBlock, StatBlockNames, Metadata } from 'src/metadata.ts';
 import { HTMLStatElement } from 'src/htmlelements.ts';
+import { CharacterBuilderCache as Cache } from 'src/cache.ts';
 
 import { RaceTab } from 'src/tabs/racetab.ts';
 
 export class BaseTab extends Tab
 {
-	metadata: Metadata;
-	constructor(container, options)
-	{
-		super(container, options);
-		this.metadata = options.metadata;
-	}
 	render()
 	{
 		this.content.empty();
 		this.requiredList = [];
 
+		const metadata = this.request("metadata");
+		const settings = Cache.cache("settings");
+
 		let splitElmt = this.content.createDiv({ cls: "character-builder-splitter-container" });
-		new TextField(splitElmt, "Nom de personnage").link(this.metadata, "name").required(this);
-		const settingDropdown = new Dropdown(splitElmt, "Univers", false).source(this.metadata, `races`).link(this.metadata, "setting").required(this).onChange(() => this.container.get(RaceTab).dirty = true);
+		new TextField(splitElmt, "Nom de personnage").link(metadata, "name").required(this);
+		const settingDropdown = new Dropdown(splitElmt, "Univers", false).source(metadata, `races`).link(metadata, "setting").required(this).onChange(() => this.container.get(RaceTab).dirty = true);
 
 		const splitContainer = this.content.createDiv({ cls: "character-builder-splitter-container" });
 		const statBlockContainer = splitContainer.createDiv({ cls: "character-builder-statblock-container" });
 
-		const stats = Object.keys(this.metadata.statBlock);
+		const stats = Object.keys(metadata.statBlock);
 		let totalElmt;
-		this.remaining = parseInt(this.options.settings.statAmount);
+		this.remaining = parseInt(settings.statAmount);
 		table(statBlockContainer, Object.values(StatBlockNames), ["Statistique", "Réussite normale", "Réussite haute", "Réussite extrème"], (elmt, col, row) => {
-			const stat = this.metadata.statBlock[stats[col]];
+			const stat = metadata.statBlock[stats[col]];
 			const self = this;
 			switch(row)
 			{
 				case 0:
-					new HTMLStatElement(elmt, this.options.settings.minStat, this.options.settings.maxInitialStat).change(function(oldVal, newVal) {
+					new HTMLStatElement(elmt, settings.minStat, settings.maxInitialStat).change(function(oldVal, newVal) {
 						if(oldVal === newVal)
 							return;
 
@@ -61,7 +59,7 @@ export class BaseTab extends Tab
 						} catch(e) {}
 
 						return newVal;
-					}).value(stat.initial || this.options.settings.minStat);
+					}).value(stat.initial || settings.minStat);
 					return;
 				case 1:
 					elmt.createEl("i", { text: stat.initial + stat.bonus });
@@ -82,15 +80,15 @@ export class BaseTab extends Tab
 
 		splitElmt = splitContainer.createDiv();
 		const armorSlider = new Slider(splitElmt, `Armure max`).desc(`L'armure maximum determine le nombre de talents disponibles au niveau 1.`).range(2, 6, 2);
-		const talentText = new TextField(splitElmt, `Talents au niveau 1`).disable(true).value(this.metadata.talents).class("text-field-no-editor");
+		const talentText = new TextField(splitElmt, `Talents au niveau 1`).disable(true).value(metadata.talents).class("text-field-no-editor");
 		armorSlider.onChange(value => {
-			this.metadata.armor = value;
-			this.metadata.talents = 6 - value / 2;
+			metadata.armor = value;
+			metadata.talents = 6 - value / 2;
 
 			talentText.value(6 - value / 2);
 		}).value(2).tooltip(true);
 
-		new TextArea(this.content, `Backstory`).link(this.metadata, `flavoring`);
+		new TextArea(this.content, `Backstory`).link(metadata, `flavoring`);
 	}
 }
 

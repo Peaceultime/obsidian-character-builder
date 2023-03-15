@@ -141,12 +141,10 @@ If your plugin does not need CSS, delete this file.
 .character-builder-splitter-container .character-builder-setting {
     padding: 0.75em 0 0.75em 0;
 }
-/* Add extra space for setting heading if it starts a new section */
 .character-builder-setting + .character-builder-setting-heading {
   margin-top: 0.75em;
 }
-.character-builder-setting:first-child {
-  /* padding-top: 0; */
+.character-builder-setting:first-child, .character-builder-splitter-container:first-child {
   border-top: none;
 }
 .character-builder-setting > *:first-child {
@@ -257,14 +255,15 @@ If your plugin does not need CSS, delete this file.
     font-weight: bold;
 }
 
+.character-builder-tab-container {
+    border-top: 1px solid var(--background-modifier-border);
+}
 .character-builder-tab {
     display: block;
 }
-
 .character-builder-tab.tab-hidden {
     display: none;
 }
-
 .character-builder-breadcrumb-container {
     position: absolute;
     top: 5.5em;
@@ -313,8 +312,10 @@ If your plugin does not need CSS, delete this file.
     justify-content: flex-start;
 }
 .character-builder-setting-control.character-builder-setting-text-area-control textarea {
-    min-width: 200px;
+    resize: vertical;
     min-height: 90px;
+    max-height: 400px;
+    width: 100%;
 }
 
 .character-builder-setting.invalid .character-builder-setting-info::after {
