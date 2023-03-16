@@ -1,4 +1,4 @@
-import { Dropdown, TextField, TextArea, Slider } from 'src/components.ts';
+import { Dropdown, TextField, MarkdownArea, Slider } from 'src/components.ts';
 import { Tab, TabContainer } from 'src/tab.ts';
 import { Substats, Stat, StatBlock, StatBlockNames, Metadata } from 'src/metadata.ts';
 import { HTMLStatElement } from 'src/htmlelements.ts';
@@ -88,7 +88,7 @@ export class BaseTab extends Tab
 			talentText.value(6 - value / 2);
 		}).value(2).tooltip(true);
 
-		new TextArea(this.content, `Backstory`).link(metadata, `flavoring`);
+		new MarkdownArea(this.content, `Backstory`, this.container.view).link(metadata, `flavoring`);
 	}
 }
 

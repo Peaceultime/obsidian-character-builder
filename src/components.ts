@@ -1,4 +1,4 @@
-import { TextComponent, TextAreaComponent, DropdownComponent, SliderComponent, ValueComponent, MarkdownPreviewView } from 'obsidian';
+import { TextComponent, TextAreaComponent, DropdownComponent, SliderComponent, ValueComponent, MarkdownPreviewView, MarkdownSourceView } from 'obsidian';
 
 import { CharacterBuilderCache as Cache } from 'src/cache.ts';
 
@@ -49,21 +49,21 @@ export abstract class VisualComponent {
 	}
 	value(value: string): VisualComponent
 	{
-		this.component.setValue(value?.toString());
-		this.component.changeCallback(value);
+		this.component?.setValue(value?.toString());
+		this.component?.changeCallback(value);
 
 		return this;
 	}
 	disable(state: boolean): VisualComponent
 	{
-		this.component.setDisabled(state);
+		this.component?.setDisabled(state);
 
 		return this;
 	}
 	validate(): boolean
 	{
 		this.setting.classList.remove("invalid");
-		const value = this.component.getValue();
+		const value = this.component?.getValue();
 		if(value !== '' && value !== undefined && value !== null && this.compElmt.querySelector("input,select,textarea")?.checkValidity())
 			return true;
 
@@ -217,6 +217,48 @@ export class Slider extends VisualComponent {
 				this.linkSrc[this.linkedProperty] = value;
 			
 			this.tooltipElmt.innerHTML = value;
+
+			cb(value);
+		});
+
+		return this;
+	}
+}
+export class MarkdownArea extends VisualComponent {
+	editor: any;
+	view: View;
+	constructor(parent: HTMLElement, name: string, view: View)
+	{
+		super(parent, name);
+		this.view = view;
+		this.compElmt.classList.add("character-builder-setting-markdown-area-control");
+		this.component = undefined;
+		this.editor = new MarkdownSourceView(view);
+		this.editor.editorEl.parentElement.removeChild(this.editor.editorEl);
+		this.compElmt.appendChild(this.editor.editorEl);
+		this.compElmt.addEventListener("contextmenu", () => this.view.editor = this.editor.editor, { capture: true });
+		this.onChange(value => {});
+	}
+	value(value: string): VisualComponent
+	{
+		this.editor?.set(value?.toString() || '');
+		this.editor?.onCssChange();
+
+		return this;
+	}
+	disable(state: boolean): VisualComponent
+	{
+		console.log("MarkdownArea cannot be disable");
+		return this;
+	}
+	onChange(cb): VisualComponent
+	{	
+		this.editor.cmEditor.on("changes", () => {
+			const value = this.editor.get();
+			this.setting.classList.remove("invalid");
+
+			if(this.linkSrc && this.linkedProperty)
+				this.linkSrc[this.linkedProperty] = value;
 
 			cb(value);
 		});

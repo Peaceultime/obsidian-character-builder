@@ -134,7 +134,8 @@ If your plugin does not need CSS, delete this file.
 
 .character-builder-setting {
   display: flex;
-  flex-direction: column;align-items: stretch;
+  flex-direction: column;
+  align-items: stretch;
   padding: 0.75em 1em 0.75em 1em;
   border-top: 1px solid var(--background-modifier-border);
 }
@@ -246,13 +247,15 @@ If your plugin does not need CSS, delete this file.
 
 .character-builder-setting.text-field-no-editor input {
     border: none !important;
-    background: inherit;
+    background: inherit !important;
     color: var(--text-normal);
     font-family: inherit;
     font-size: var(--font-ui-normal);
-    outline: none;
+    outline: none !important;
     text-align: right;
     font-weight: bold;
+    max-width: 8em;
+    box-shadow: none !important;
 }
 
 .character-builder-tab-container {
@@ -265,9 +268,6 @@ If your plugin does not need CSS, delete this file.
     display: none;
 }
 .character-builder-breadcrumb-container {
-    position: absolute;
-    top: 5.5em;
-    right: 3em;
     display: flex;
 }
 
@@ -289,11 +289,17 @@ If your plugin does not need CSS, delete this file.
     transition: background-color .5s ease;
 }
 
+.character-builder-full-view-header ::before, .character-builder-full-view-header ::after {
+    display: none;
+}
+
 .character-builder-breadcrumb-tab:not(:last-child):after {
     content: "";
-    background-color: rgba(255, 255, 255, 0.1);
+    display: block;
+    background-color: var(--background-modifier-border);
     position: absolute;
     right: -0.8em;
+    top: 0;
     width: 1.6em;
     height: 3px;
     margin: 9px 0;
@@ -308,10 +314,10 @@ If your plugin does not need CSS, delete this file.
 .character-builder-breadcrumb-tab-title:hover {
     background-color: rgba(255, 255, 255, 0.05);
 }
-.character-builder-setting-control.character-builder-setting-text-area-control {
+.character-builder-setting-control.character-builder-setting-text-area-control, .character-builder-setting-control.character-builder-setting-markdown-area-control {
     justify-content: flex-start;
 }
-.character-builder-setting-control.character-builder-setting-text-area-control textarea {
+.character-builder-setting-control.character-builder-setting-text-area-control textarea, .character-builder-setting-control.character-builder-setting-markdown-area-control textarea {
     resize: vertical;
     min-height: 90px;
     max-height: 400px;
@@ -342,4 +348,34 @@ If your plugin does not need CSS, delete this file.
 
 .invalid input, .invalid select, .invalid textarea {
     border-color: var(--color-accent) !important;
+}
+
+.character-builder-setting-control.character-builder-setting-markdown-area-control {
+    width: 100%;
+    height: 400px;
+    border-radius: 4px;
+    border: 1px solid var(--background-modifier-border);
+    text-align: inherit;
+}
+
+.character-builder-setting-control.character-builder-setting-markdown-area-control .markdown-source-view {
+    padding: 0;
+    width: 100%;
+}
+.character-builder-full-view-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+
+.character-builder-full-view-footer {
+    padding: 0.75em 13em 0.75em 1em;
+    border-top: 1px solid var(--background-modifier-border);
+    background-color: var(--background-primary);
+    position: sticky;
+    bottom: -1.75em;
+    z-index: var(--layer-cover);
+}
+.character-builder-full-view-footer button {
+    padding: 1.25em 2em;
 }

@@ -108,7 +108,7 @@ export default class CharacterBuilder extends Plugin {
 	}
 
 	async savePluginData(): void {
-		this.savedData.views = (await this.app.workspace.getLeavesOfType(VIEW_TYPE_CHARACTER_BUILDER_FULL)).map(e => { return { metadata: e.view.metadata, path: e.view.file?.path, active: e === this.app.workspace.activeLeaf }; });
+		this.savedData.views = this.tabs.map(e => { return { metadata: e.metadata, path: e.file?.path, active: e.leaf === this.app.workspace.activeLeaf }; });
 		this.savedData.settings = this.settings;
 		await this.saveData(this.savedData);
 		await initCache(this.app);
@@ -116,9 +116,11 @@ export default class CharacterBuilder extends Plugin {
 
 	addTab(view: CharacterBuilderFullView): void {
 		this.tabs.includes(view) || this.tabs.push(view);
+		this.savePluginData();
 	}
 
 	removeTab(view: CharacterBuilderFullView): void {
 		this.tabs.includes(view) && this.tabs.splice(this.tabs.findIndex(e => e === view), 1);
+		this.savePluginData();
 	}
 }

@@ -12,5 +12,6 @@ export class LevelTab extends Tab
 		this.requiredList = [];
 
 		const metadata = this.request("metadata");
+		
 	}
 }

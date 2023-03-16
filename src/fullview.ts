@@ -17,6 +17,8 @@ export class CharacterBuilderFullView extends ItemView {
 	file: TFile;
 	name: string;
 
+	editor: any;
+
 	tabContainer: TabContainer;
 
 	constructor(leaf: WorkspaceLeaf, plugin: any) {
@@ -51,14 +53,15 @@ export class CharacterBuilderFullView extends ItemView {
 		const {contentEl} = this;
 
 		contentEl.empty();
-		contentEl.createEl("h2", { text: "Création de personnage" });
+		const header = contentEl.createDiv("character-builder-full-view-header");
+		header.createEl("h2", { text: "Création de personnage" });
 
-		this.tabContainer = new TabContainer(contentEl).cache(this);
+		this.tabContainer = new TabContainer(this, contentEl, header).cache(this);
 		const baseTab = this.tabContainer.add(BaseTab, "Base du personnage").onOpen(() => this.refresh());
 		const raceTab = this.tabContainer.add(RaceTab, "Race").onOpen(() => this.refresh());
 		const levelsTab = this.tabContainer.add(LevelTab, "Niveaux").onOpen(() => this.refresh());
 
-		new Setting(contentEl).addButton(btn => btn.setButtonText("Suivant").onClick(() => this.tabContainer.next())).addButton(btn => btn.setButtonText(this.file ? 'Modifier' : 'Créer').onClick(() => {
+		new Setting(contentEl.createDiv("character-builder-full-view-footer")).addButton(btn => btn.setButtonText("Suivant").onClick(() => this.tabContainer.next())).addButton(btn => btn.setButtonText(this.file ? 'Modifier' : 'Créer').onClick(() => {
 			if(this.metadata.name.trim() === '')
 			{
 				new Notice("Veuillez saisir un nom pour créer la fiche de personnage.");
@@ -146,4 +149,9 @@ export class CharacterBuilderFullView extends ItemView {
 
 		await this.leaf.openFile(file);
 	}
+
+	requestSave() {}
+	triggerQuickPreview() {}
+	onMarkdownFold() {}
+	onMarkdownScroll() {}
 }
