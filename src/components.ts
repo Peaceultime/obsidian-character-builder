@@ -226,42 +226,56 @@ export class Slider extends VisualComponent {
 }
 export class MarkdownArea extends VisualComponent {
 	editor: any;
-	view: View;
-	constructor(parent: HTMLElement, name: string, view: View)
+	constructor(parent: HTMLElement, name: string)
 	{
 		super(parent, name);
-		this.view = view;
 		this.compElmt.classList.add("character-builder-setting-markdown-area-control");
 		this.component = undefined;
-		this.editor = new MarkdownSourceView(view);
-		this.editor.editorEl.parentElement.removeChild(this.editor.editorEl);
-		this.compElmt.appendChild(this.editor.editorEl);
-		this.compElmt.addEventListener("contextmenu", () => this.view.editor = this.editor.editor, { capture: true });
+		this.editor = app.embedRegistry.getEmbedCreator({ extension: "md" })({
+		    app: app,
+		    linktext: null,
+		    sourcePath: null,
+		    containerEl: this.compElmt,
+		    displayMode: false,
+		    showInline: false,
+		    depth: 0
+		}, null);
+		this.editor.editable = true;
+		this.editor.load();
+		this.editor.showEditor();
+		this.editor.inlineTitleEl?.remove();
 		this.onChange(value => {});
 	}
+	/* override */
 	value(value: string): VisualComponent
 	{
 		this.editor?.set(value?.toString() || '');
-		this.editor?.onCssChange();
 
 		return this;
 	}
+	/* override */
 	disable(state: boolean): VisualComponent
 	{
-		console.log("MarkdownArea cannot be disable");
+		if(state)
+			this.editor.showPreview();
+		else
+			this.editor.showEditor();
+
+		this.editor.inlineTitleEl?.remove();
 		return this;
 	}
+	/* override */
 	onChange(cb): VisualComponent
 	{	
-		this.editor.cmEditor.on("changes", () => {
-			const value = this.editor.get();
+		this.editor.requestSave = () => {
+			const value = this.editor.text;
 			this.setting.classList.remove("invalid");
 
 			if(this.linkSrc && this.linkedProperty)
 				this.linkSrc[this.linkedProperty] = value;
 
 			cb(value);
-		});
+		}
 
 		return this;
 	}

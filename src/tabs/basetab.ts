@@ -26,7 +26,7 @@ export class BaseTab extends Tab
 		const stats = Object.keys(metadata.statBlock);
 		let totalElmt;
 		this.remaining = parseInt(settings.statAmount);
-		table(statBlockContainer, Object.values(StatBlockNames), ["Statistique", "Réussite normale", "Réussite haute", "Réussite extrème"], (elmt, col, row) => {
+		table(statBlockContainer, Object.values(StatBlockNames), ["Statistique", "Réussite haute", "Réussite extrème"], (elmt, col, row) => {
 			const stat = metadata.statBlock[stats[col]];
 			const self = this;
 			switch(row)
@@ -52,9 +52,8 @@ export class BaseTab extends Tab
 						stat.initial = newVal;
 
 						try {
-							this.component.parentElement.parentElement.parentElement.children[1].children[col + 1].textContent = stat.initial + stat.bonus;
-							this.component.parentElement.parentElement.parentElement.children[2].children[col + 1].textContent = Math.floor((stat.initial + stat.bonus) / 2);
-							this.component.parentElement.parentElement.parentElement.children[3].children[col + 1].textContent = Math.floor((stat.initial + stat.bonus) / 5);
+							this.component.parentElement.parentElement.parentElement.children[1].children[col + 1].textContent = Math.floor(stat.initial / 2);
+							this.component.parentElement.parentElement.parentElement.children[2].children[col + 1].textContent = Math.floor(stat.initial / 5);
 							totalElmt.textContent = self.remaining;
 						} catch(e) {}
 
@@ -62,13 +61,10 @@ export class BaseTab extends Tab
 					}).value(stat.initial || settings.minStat);
 					return;
 				case 1:
-					elmt.createEl("i", { text: stat.initial + stat.bonus });
+					elmt.createEl("i", { text: Math.floor(stat.initial / 2) });
 					return;
 				case 2:
-					elmt.createEl("i", { text: Math.floor((stat.initial + stat.bonus) / 2) });
-					return;
-				case 3:
-					elmt.createEl("i", { text: Math.floor((stat.initial + stat.bonus) / 5) });
+					elmt.createEl("i", { text: Math.floor(stat.initial / 5) });
 					return;
 				default:
 					return;

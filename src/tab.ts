@@ -60,16 +60,13 @@ export class Tab {
 	abstract render();
 }
 export class TabContainer {
-	view: View;
-
 	breadcrumb: HTMLDivElement;
 	container: HTMLDivElement;
 	tabs: Tab[];
 	active: number;
 
 	dataCache: any;
-	constructor(view: View, elmt: HTMLElement, header?: HTMLElement) {
-		this.view = view;
+	constructor(elmt: HTMLElement, header?: HTMLElement) {
 		this.breadcrumb = !!header ? header.createDiv({ cls: "character-builder-breadcrumb-container" }) : elmt.createDiv({ cls: "character-builder-breadcrumb-container" });
 		this.container = elmt.createDiv({ cls: "character-builder-tab-container" });
 		this.tabs = [];

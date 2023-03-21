@@ -1,5 +1,5 @@
 export interface Substats {
-	[name: string]: Stat;
+	[name: string]: number;
 }
 export const Stat = {
 	initial: 0,
@@ -23,6 +23,15 @@ export const StatBlockNames = {
 	charisma: "Charisme",
 	will: "Volonté",
 } as const;
+export interface Level {
+	level: number;
+	talents: string[];
+	buffedStat: string;
+	buffedSubstats: Substats;
+	hp: number;
+	focus: number;
+	flavoring: string;
+}
 
 export interface Metadata {
 	type: string;
@@ -32,7 +41,6 @@ export interface Metadata {
 
 	armor: number;
 	luck: number;
-	talents: number;
 
 	race: string;
 	subrace: string;
@@ -40,6 +48,8 @@ export interface Metadata {
 
 	statBlock: StatBlock;
 	substats: Substats;
+
+	levels: Level[];
 
 	flavoring: string;
 }

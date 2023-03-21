@@ -379,3 +379,7 @@ If your plugin does not need CSS, delete this file.
 .character-builder-full-view-footer button {
     padding: 1.25em 2em;
 }
+
+.character-builder-setting-control.character-builder-setting-markdown-area-control .markdown-embed-content {
+    width: 100%;
+}

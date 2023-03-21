@@ -17,8 +17,6 @@ export class CharacterBuilderFullView extends ItemView {
 	file: TFile;
 	name: string;
 
-	editor: any;
-
 	tabContainer: TabContainer;
 
 	constructor(leaf: WorkspaceLeaf, plugin: any) {
@@ -56,7 +54,7 @@ export class CharacterBuilderFullView extends ItemView {
 		const header = contentEl.createDiv("character-builder-full-view-header");
 		header.createEl("h2", { text: "Création de personnage" });
 
-		this.tabContainer = new TabContainer(this, contentEl, header).cache(this);
+		this.tabContainer = new TabContainer(contentEl, header).cache(this);
 		const baseTab = this.tabContainer.add(BaseTab, "Base du personnage").onOpen(() => this.refresh());
 		const raceTab = this.tabContainer.add(RaceTab, "Race").onOpen(() => this.refresh());
 		const levelsTab = this.tabContainer.add(LevelTab, "Niveaux").onOpen(() => this.refresh());
@@ -149,9 +147,4 @@ export class CharacterBuilderFullView extends ItemView {
 
 		await this.leaf.openFile(file);
 	}
-
-	requestSave() {}
-	triggerQuickPreview() {}
-	onMarkdownFold() {}
-	onMarkdownScroll() {}
 }
