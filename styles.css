@@ -383,3 +383,21 @@ If your plugin does not need CSS, delete this file.
 .character-builder-setting-control.character-builder-setting-markdown-area-control .markdown-embed-content {
     width: 100%;
 }
+
+.character-builder-talent-list {
+    width: 20%;
+}
+
+.character-builder-talent-item {
+    padding: 5px 12px;
+    transition: background-color .2s;
+    cursor: pointer;
+}
+
+.character-builder-talent-item:hover {
+    background-color: var(--interactive-hover);
+}
+
+.character-builder-talent-group-header {
+    padding: 8px 0;
+}

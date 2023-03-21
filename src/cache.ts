@@ -39,7 +39,7 @@ export class CharacterBuilderCache {
 
 export async function initCache(app: App): void {
 	const settings = CharacterBuilderCache.cache("settings");
-	const files = app.vault.getMarkdownFiles();
+	const files = app.vault.getMarkdownFiles().reverse();
 
 	const races = (await Promise.all(files.filter(e => e.path.startsWith(settings.racesFolder + "/")).map(e => getRaceContent(e, app)))).filter(e => !!e && !!e.content);
 
@@ -92,7 +92,7 @@ async function getTalentContent(file: TFile, app: App): any {
 	while((match = levelRegex.exec(content)) !== null)
 		level = Math.min(level, match[1]);
 
-	const type = /\d\. /.test(file.parent.name) ? undefined : file.parent.name;
+	const type = /\d\. /.test(file.parent.name) ? "initial" : file.parent.name;
 
 	return {filename: file.basename, type: type, options: headingHierarchy(metadata.headings), path: file.path, talentsRequired: links, levelRequired: level === Infinity || type === undefined ? 1 : level, stack: /(?<!non )[Cc]umulable/.test(content) };
 }
