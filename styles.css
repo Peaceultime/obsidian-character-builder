@@ -386,6 +386,8 @@ If your plugin does not need CSS, delete this file.
 
 .character-builder-talent-list {
     width: 20%;
+    border-right: 1px solid var(--background-modifier-border);
+    margin: 8px 2px;
 }
 
 .character-builder-talent-item {
@@ -400,4 +402,13 @@ If your plugin does not need CSS, delete this file.
 
 .character-builder-talent-group-header {
     padding: 8px 0;
+}
+
+.character-builder-talent-list-container {
+    display: flex;
+}
+
+.character-builder-talent-content {
+    margin: 1em 2em;
+    width: 80%;
 }

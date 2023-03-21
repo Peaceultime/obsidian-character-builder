@@ -1,4 +1,4 @@
-import { Setting } from 'obsidian';
+import { Setting, MarkdownPreviewView } from 'obsidian';
 import { Dropdown, TextField, TextArea, Slider } from 'src/components.ts';
 import { Tab, TabContainer } from 'src/tab.ts';
 import { Substats, Stat, StatBlock, StatBlockNames, Metadata } from 'src/metadata.ts';
@@ -38,8 +38,13 @@ class TalentPicker
 {
 	talents: any;
 
+	current: string;
+
 	listElmt: HTMLElement;
 	content: HTMLElement;
+	button: Setting;
+
+	res: any;
 	constructor(parent: HTMLElement)
 	{
 		this.talents = Cache.cache("talents");
@@ -47,6 +52,9 @@ class TalentPicker
 		const container = parent.createDiv("character-builder-talent-list-container");
 		this.listElmt = container.createDiv("character-builder-talent-list");
 		this.content = container.createDiv("character-builder-talent-content");
+
+		this.button = new Setting(container).addButton(btn => btn.setButtonText("Pick talent").onClick(() => this.confirm()));
+		this.button.setDisabled(true);
 	}
 	async pick(picked: string[], level: number): string
 	{
@@ -85,12 +93,10 @@ class TalentPicker
 						});
 					}
 					container.createDiv("character-builder-talent-group-content", div => {
-						value.forEach(e => div.createDiv("character-builder-talent-item").createSpan({ cls: "character-builder-talent-item-title", text: e.filename }))
+						value.forEach(e => div.createDiv("character-builder-talent-item", item => { item.addEventListener("click", () => this.display(e)); }).createSpan({ cls: "character-builder-talent-item-title", text: e.filename }));
 					});
 				});
 			}
-
-			new Setting(this.content).addButton(btn => btn.setButtonText("Pick talent").onClick(() => currentTalent !== "" && res(currentTalent)));
 		});
 	}
 
@@ -106,5 +112,41 @@ class TalentPicker
 			return false;
 
 		return true;
+	}
+
+	async display(talent: any): void
+	{
+		this.current = talent.filename;
+		this.content.empty();
+
+		const file = app.vault.getAbstractFileByPath(talent.path);
+		const editor = app.embedRegistry.getEmbedCreator(file)({
+		    app: app,
+		    linktext: null,
+		    sourcePath: null,
+		    containerEl: this.content,
+		    displayMode: true,
+		    showInline: true,
+		    depth: 0
+		}, file);
+		editor.loadFile();
+		editor.inlineTitleEl?.remove();
+
+		this.button.setDisabled(false);
+	}
+
+	confirm(): void
+	{
+		if(this.res)
+		{
+			const res = this.res;
+			this.res = undefined;
+
+			this.content.empty();
+			this.listElmt.empty();
+			this.button.setDisabled(true);
+
+			res(this.talent);
+		}
 	}
 }

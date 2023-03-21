@@ -1,4 +1,4 @@
-import { TextComponent, TextAreaComponent, DropdownComponent, SliderComponent, ValueComponent, MarkdownPreviewView, MarkdownSourceView } from 'obsidian';
+import { TextComponent, TextAreaComponent, DropdownComponent, SliderComponent, ValueComponent, MarkdownPreviewView } from 'obsidian';
 
 import { CharacterBuilderCache as Cache } from 'src/cache.ts';
 
