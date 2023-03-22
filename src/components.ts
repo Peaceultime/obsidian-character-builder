@@ -105,7 +105,7 @@ export class Dropdown extends VisualComponent {
 	}
 	source(dataSrc: any, src: string): Dropdown
 	{
-		if(src === this.src)
+		if(src && src === this.src)
 			return this;
 
 		this.dataSource = dataSrc;
@@ -119,11 +119,18 @@ export class Dropdown extends VisualComponent {
 		for(i = L; i >= 0; i--)
 			this.component.selectEl.remove(i);
 
-		let match, target = this.src;
-		target = target.replace(/{(.+?)}/g, (_, m1) => this.dataSource[m1]);
-		this.cache = Cache.cache(target);
+		if(!this.src && this.dataSource)
+		{
+			this.cache = this.dataSource;
+		}
+		else
+		{
+			let match, target = this.src;
+			target = target.replace(/{(.+?)}/g, (_, m1) => this.dataSource[m1]);
+			this.cache = Cache.cache(target);
+		}
 
-		if(!this.src || !this.cache)
+		if(!this.cache)
 		{
 			return this.value("").disable(true);
 		}
@@ -132,7 +139,11 @@ export class Dropdown extends VisualComponent {
 			this.disable(false);
 		}
 
-		const keys = Object.keys(this.cache);
+		let keys;
+		if(Array.isArray(this.cache))
+			keys = this.cache;
+		else
+			keys = Object.keys(this.cache);
 
 		for(i = 0; i < keys.length; i++)
 			this.component.addOption(keys[i], keys[i]);

@@ -45,16 +45,16 @@ If your plugin does not need CSS, delete this file.
     position: relative;
     top: -17px;
 }
-.character-builder-group-container.character-builder-group-collapsed
+.character-builder-group-container.collapsed
 {
     padding-bottom: 1em;
 }
-.character-builder-group-collapsed .character-builder-group-collapse-icon
+.character-builder-group-container.collapsed .character-builder-group-collapse-icon
 {
 	transform: rotate(-90deg);
 	color: var(--nav-collapse-icon-color-collapsed);
 }
-.character-builder-group-collapsed .character-builder-group-content
+.character-builder-group-container.collapsed .character-builder-group-content
 {
 	display: none;
 }
@@ -388,6 +388,8 @@ If your plugin does not need CSS, delete this file.
     width: 20%;
     border-right: 1px solid var(--background-modifier-border);
     margin: 8px 2px;
+    height: calc(100% - 16px);
+    overflow: auto;
 }
 
 .character-builder-talent-item {
@@ -401,14 +403,132 @@ If your plugin does not need CSS, delete this file.
 }
 
 .character-builder-talent-group-header {
-    padding: 8px 0;
+    padding: 0.3em 0;
+    cursor: pointer;
 }
 
 .character-builder-talent-list-container {
     display: flex;
+    align-items: flex-start;
+    height: 78vh;
 }
 
 .character-builder-talent-content {
     margin: 1em 2em;
     width: 80%;
+    max-height: calc(100% - 2em);
+    overflow: auto;
+}
+
+.character-builder-talent-modal {
+    overflow: hidden;
+    flex: auto;
+}
+
+.character-builder-talent-modal .modal-content {
+    height: 100%;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal.character-builder-talent-modal .modal-content .setting-item {
+    padding-bottom: 0;
+}
+.character-builder-talent-modal .modal-close-button {
+    z-index: var(--layer-cover);
+}
+
+.character-builder-talent-group-container {
+    padding: 2px;
+    margin: 2px;
+    position: relative;
+}
+
+.character-builder-talent-group-content {
+    margin: .2em;
+    padding-left: .5em;
+    border-left: 1px solid var(--background-modifier-border);
+}
+
+.character-builder-talent-group-header:before, .character-builder-group-title:before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    transition: transform 100ms ease-in-out;
+    position: absolute;
+    top: 10px;
+    left: 0;
+    border: 1px solid var(--nav-collapse-icon-color);
+    border-top: none;
+    border-left: none;
+    transform: rotate(45deg);
+    transition: transform .2s ease;
+}
+
+.collapsed .character-builder-talent-group-header:before, .collapsed .character-builder-group-title:before {
+    transform: rotate(-45deg);
+}
+
+.character-builder-group-container.character-builder-group-collapsed {
+    padding-bottom: 1em;
+}
+
+.character-builder-group-collapsed .character-builder-group-collapse-icon {
+    transform: rotate(-90deg);
+    color: var(--nav-collapse-icon-color-collapsed);
+}
+
+.collapsed .character-builder-talent-group-content {
+    display: none;
+}
+
+.character-builder-talent-group-title {
+    padding-left: 1em;
+}
+
+.character-builder-talents-container {
+    flex: 2 1 auto !important;
+}
+
+.character-builder-talents-content {
+    display: flex;
+    gap: 8px;
+    margin: .5em;
+    padding: .5em;
+    border: 1px solid var(--background-modifier-border) !important;
+    flex-wrap: wrap;
+}
+
+.character-builder-talent {
+    padding-left: .75em;
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--background-modifier-border);
+    border-radius: 1em;
+    display: flex;
+    align-items: center;
+}
+
+span.character-builder-talent-remove {
+    width: 24px;
+    height: 24px;
+    display: block;
+    border-radius: 16px;
+    cursor: pointer;
+    margin-left: .5em;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.character-builder-talent-remove:hover {
+    background-color: var(--background-modifier-border-focus);
+}
+
+.character-builder-talent:hover {
+    border-color: var(--background-modifier-border-focus);
+}
+
+span.character-builder-talent-remove:after {
+    content: "✕";
 }

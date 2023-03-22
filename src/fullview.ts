@@ -54,7 +54,7 @@ export class CharacterBuilderFullView extends ItemView {
 		const header = contentEl.createDiv("character-builder-full-view-header");
 		header.createEl("h2", { text: "Création de personnage" });
 
-		this.tabContainer = new TabContainer(contentEl, header).cache(this);
+		this.tabContainer = new TabContainer(this.app, contentEl, header).cache(this);
 		const baseTab = this.tabContainer.add(BaseTab, "Base du personnage").onOpen(() => this.refresh());
 		const raceTab = this.tabContainer.add(RaceTab, "Race").onOpen(() => this.refresh());
 		const levelsTab = this.tabContainer.add(LevelTab, "Niveaux").onOpen(() => this.refresh());
@@ -89,6 +89,7 @@ export class CharacterBuilderFullView extends ItemView {
 			this.metadata = {};
 			this.metadata.statBlock = JSON.parse(JSON.stringify(StatBlock));
 			this.metadata.substats = {};
+			this.metadata.levels = [];
 		}
 		this.metadata.type = "character";
 	}
