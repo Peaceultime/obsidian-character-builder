@@ -1,20 +1,20 @@
-import { Setting, MarkdownPreviewView, Modal, App } from 'obsidian';
+import { Setting, MarkdownPreviewView, Modal, App, ButtonComponent } from 'obsidian';
 import { Dropdown, TextField, TextArea, Slider } from 'src/components.ts';
 import { Tab, TabContainer } from 'src/tab.ts';
-import { Substats, Stat, StatBlock, StatBlockNames, Metadata } from 'src/metadata.ts';
+import { Substats, Stat, StatBlock, StatBlockNames, Metadata, TalentMetadata, Talent } from 'src/metadata.ts';
 import { HTMLStatElement } from 'src/htmlelements.ts';
 import { CharacterBuilderCache as Cache } from 'src/cache.ts';
 
 export class LevelTab extends Tab
 {
-	talents: string[];
+	talents: Talent[];
 	levels: Level[];
 
 	talentPicker: TalentPicker;
 	talentList: TalentList;
 	render(): void
 	{
-		const metadata = this.request("metadata");
+		const metadata = this.metadata = this.request("metadata");
 
 		this.content.empty();
 		this.requiredList = [];
@@ -25,11 +25,11 @@ export class LevelTab extends Tab
 			const level = {
 				level: this.levels.reduce((p, v) => Math.max(p, v.level), 0) + 1,
 				talents: [],
-				buffedStat: "",
+				buffedStat: undefined,
 				buffedSubstats: {},
 				hp: 13,
 				focus: 0,
-				flavoring: "",
+				flavoring: undefined,
 			};
 			metadata.levels.push(level);
 			this.renderLevel(level);
@@ -40,11 +40,11 @@ export class LevelTab extends Tab
 			metadata.levels.push({
 				level: 1,
 				talents: [],
-				buffedStat: "",
+				buffedStat: undefined,
 				buffedSubstats: {},
 				hp: 13,
 				focus: 0,
-				flavoring: "",
+				flavoring: undefined,
 			});
 		}
 		this.levels = metadata.levels;
@@ -59,18 +59,23 @@ export class LevelTab extends Tab
 	renderLevel(level: Level, collapsed: boolean = false)
 	{
 		const grpEl = group(this.content, `Niveau ${level.level}`, collapsed);
-		if(level.level % 2 === 0)
-			new Dropdown(grpEl, "Bonus de +2 sur une stat principale").source(Object.values(StatBlockNames)).link(level, "buffedStat");
 
 		grpEl.createDiv("character-builder-splitter-container", split => {
-			const talentList = new TalentList(split);
-			talentList.onRemove((talent: string) => {
-				this.talents.splice(this.talents.findIndex(e => e === talent), 1);
-				level.talents.splice(level.talents.findIndex(e => e === talent), 1);
-			});
+			const hp = new Slider(split, "PV supplémentaires").range(0, 13, 1).link(level, "hp").desc("13 points à repartir entre PV et focus. " + (level.level === 1 ? `+${Cache.cache(`races/${this.metadata.setting}/content/${this.metadata.race}/frontmatter/hp`)} PV de bonus racial au niveau 1.` : ""));
+			const focus = new Slider(split, "Focus supplémentaire").range(0, 13, 1).link(level, "focus");
 
-			new Setting(split).addButton(btn => btn.setIcon("lucide-plus").onClick(() => this.pickTalent(talentList, level)));
+			hp.onChange((value) => focus.value(13 - value));
+			focus.onChange((value) => hp.value(13 - value));
+
+			if(level.level % 2 === 0)
+				new Dropdown(split, "+3 sur une stat", false).source(StatBlockNames).link(level, "buffedStat").desc("Tous les niveaux pairs, vous obtenez un bonus de +3 sur une stat principale, dans la limite de 60 points au total.");
 		});
+		
+		const talentList = new TalentList(grpEl, level.talents);
+		talentList.onRemove((talent: Talent) => {
+			this.talents.splice(this.talents.findIndex(e => TalentMetadata.compare(e, talent)), 1);
+			level.talents.splice(level.talents.findIndex(e => TalentMetadata.compare(e, talent)), 1);
+		}).onAddButton(() => this.pickTalent(talentList, level));
 	}
 	pickTalent(talentList: TalentList, level: Level)
 	{
@@ -85,7 +90,7 @@ export class LevelTab extends Tab
 			this.talents.push(talent);
 			level.talents.push(talent);
 			talentList.add(talent);
-		}).catch(() => {});
+		}).catch(err => err && console.error(err));
 	}
 }
 
@@ -94,56 +99,74 @@ class TalentList
 	container: HTMLElement;
 	content: HTMLElement;
 
-	talents: string[];
+	talents: Talent[];
 	talentsEl: HTMLElement[];
-	cb: (talent: string) => void;
-	constructor(parent: HTMLElement)
+	addCb: () => void;
+	removeCb: (talent: Talent) => void;
+	constructor(parent: HTMLElement, talents: Talent[])
 	{
-		this.container = parent.createDiv("character-builder-talents-container").createDiv("character-builder-talents-content");
+		this.container = parent.createDiv("character-builder-talents-container");
+		this.button = new ButtonComponent(this.container).setIcon("lucide-plus").onClick(() => this.addCb && this.addCb());
+		this.content = this.container.createDiv("character-builder-talents-content");
 		this.talents = [];
 		this.talentsEl = [];
+
+		for(let i = 0; i < talents.length; i++)
+			this.add(talents[i]);
 	}
-	add(talent: string): void
+	add(talent: Talent): void
 	{
 		this.talents.push(talent);
-		this.talentsEl.push(this.container.createDiv({ cls: "character-builder-talent", text: talent }, (div) => div.createSpan("character-builder-talent-remove").addEventListener("click", () => this.remove(talent))));
+		this.talentsEl.push(this.content.createDiv({ cls: "character-builder-talent", text: TalentMetadata.text(talent) }, (div) => div.createSpan("character-builder-talent-remove").addEventListener("click", () => this.remove(talent))));
 	}
+	onAddButton(cb: () => void): TalentList
+	{
+		this.addCb = cb;
+
+		return this;
+	} 
 	remove(talent: string): void
 	{
-		if(this.talents.includes(talent))
+		if(TalentMetadata.includes(this.talents, talent))
 		{
-			const idx = this.talents.findIndex(e => e === talent);
+			const idx = this.talents.findIndex(e => TalentMetadata.compare(e, talent));
 
 			this.talentsEl[idx].remove();
 
 			this.talents.splice(idx, 1);
 			this.talentsEl.splice(idx, 1);
 
-			this.cb && this.cb(talent);
+			this.removeCb && this.removeCb(talent);
 		}
 	}
-	onRemove(cb: (talent: string) => void): void
+	onRemove(cb: (talent: Talent) => void): TalentList
 	{
-		this.cb = cb;
+		this.removeCb = cb;
+
+		return this;
 	}
 }
 
 class TalentPicker extends Modal
 {
-	talents: any;
+	talents: TalentMetadata[];
 
-	current: string;
+	current: TalentMetadata;
 
 	listElmt: HTMLElement;
 	content: HTMLElement;
 	button: Setting;
+
+	option: Dropdown;
+	needOption: boolean;
+	currentOption: string;
 
 	res: any;
 	rej: any;
 	constructor(app: App)
 	{
 		super(app);
-		this.talents = Cache.cache("talents");
+		this.talents = Object.values(Cache.cache("talents"));
 
 		let { contentEl, modalEl } = this;
 		modalEl.classList.add("character-builder-talent-modal");
@@ -151,12 +174,15 @@ class TalentPicker extends Modal
 		this.listElmt = container.createDiv("character-builder-talent-list");
 		this.content = container.createDiv("character-builder-talent-content");
 
-		this.button = new Setting(contentEl).addButton(btn => btn.setButtonText("Pick talent").onClick(() => this.confirm()));
-		this.button.setDisabled(true);
+		contentEl.createDiv("character-builder-splitter-container", split => {
+			this.option = new Dropdown(split);
+			this.option.setting.classList.add("hidden");
+			this.button = new Setting(split).addButton(btn => btn.setButtonText("Pick talent").onClick(() => this.confirm()));
+			this.button.setDisabled(true);
+		});
 	}
-	async pick(picked: string[], level: number): string
+	async pick(picked: Talent[], level: number): string
 	{
-		console.log(picked);
 		return new Promise((res, rej) => {
 			this.res = res;
 			this.rej = rej;
@@ -173,9 +199,10 @@ class TalentPicker extends Modal
 			}
 
 			const groups = pickableTalents.reduce((p, v) => {
-				if(!p.hasOwnProperty(v.type))
-					p[v.type] = [];
-				p[v.type].push(v);
+				const parent = v.file.parent.name;
+				if(!p.hasOwnProperty(parent))
+					p[parent] = [];
+				p[parent].push(v);
 				return p;
 			}, {});
 
@@ -186,7 +213,7 @@ class TalentPicker extends Modal
 			{
 				this.listElmt.createDiv("character-builder-talent-group-container", container =>  {
 					let header;
-					if(key !== 'initial')
+					if(!key.includes("Talent de base"))
 					{
 						header = container.createDiv("character-builder-talent-group-header", header => {
 							header.createSpan({ cls: "character-builder-talent-group-title", text: key });
@@ -194,34 +221,48 @@ class TalentPicker extends Modal
 						});
 					}
 					container.createDiv("character-builder-talent-group-content", div => {
-						value.forEach(e => div.createDiv("character-builder-talent-item", item => { item.addEventListener("click", () => this.display(e)); }).createSpan({ cls: "character-builder-talent-item-title", text: e.filename }));
+						value.forEach(e => div.createDiv("character-builder-talent-item", item => { item.addEventListener("click", () => this.display(e)); }).createSpan({ cls: "character-builder-talent-item-title", text: TalentMetadata.text(e.talent) }));
 					});
 				});
 			}
 		});
 	}
 
-	available(talent: any, picked: string[], level: number): boolean
+	available(talent: TalentMetadata, picked: Talent[], level: number): boolean
 	{
-		if(!talent.stack && picked.length > 0 && picked.some(e => e.includes("#") ? e.startsWith(talent.filename + "#") : e === talent.filename))
+		if(talent.level && talent.level > level)
 			return false;
 
-		if(talent.levelRequired && talent.levelRequired > level)
-			return false;
+		if(!picked || picked.length === 0)
+		{
+			if(talent.dependencies && talent.dependencies.length > 0)
+				return false;
+		}
+		else
+		{
+			if(TalentMetadata.includes(picked, talent.talent, true) && !talent.stackable)
+				return false;
 
-		if(talent.talentsRequired && (picked.length === 0 || talent.talentsRequired.some(e => !picked.includes(e))))
-			return false;
+			if(talent.dependencies && talent.dependencies.length > 0)
+			{
+				console.log(picked.map(e => TalentMetadata.text(e)), talent.dependencies.map(e => TalentMetadata.text(e)));
+				if(!TalentMetadata.some(talent.dependencies, picked, true))
+				{
+					console.log(false);
+					return false;
+				}
+			}
+		}
 
 		return true;
 	}
 
-	async display(talent: any): void
+	async display(talent: TalentMetadata): void
 	{
-		this.current = talent.filename;
+		this.current = talent;
 		this.content.empty();
 
-		const file = this.app.vault.getAbstractFileByPath(talent.path);
-		const editor = this.app.embedRegistry.getEmbedCreator(file)({
+		const editor = this.app.embedRegistry.getEmbedCreator(talent.file)({
 		    app: this.app,
 		    linktext: null,
 		    sourcePath: null,
@@ -229,28 +270,52 @@ class TalentPicker extends Modal
 		    displayMode: true,
 		    showInline: false,
 		    depth: 0
-		}, file);
+		}, talent.file);
 		editor.loadFile();
 		editor.inlineTitleEl?.remove();
 
 		this.button.setDisabled(false);
+
+		if(talent.options !== undefined)
+		{
+			this.option.setting.classList.remove("hidden");
+			this.option.source(talent.options.map(e => e.subname)).link(this, "currentOption");
+			this.needOption = true;
+		}
+		else
+		{
+			this.option.setting.classList.add("hidden");
+			this.option.source();
+			this.needOption = false;
+			this.currentOption = "";
+		}
 	}
 
 	confirm(): void
 	{
+		if(this.needOption && this.currentOption == "")
+		{
+			return new Notice("Ce talent nécessite de choisir une option.");
+		}
 		if(this.res)
 		{
 			const res = this.res;
+			const currentOption = this.currentOption;
 			this.res = undefined;
 			this.rej = undefined;
+			this.currentOption = "";
 
 			this.content.empty();
 			this.listElmt.empty();
 			this.button.setDisabled(true);
 
-			console.log(this.current);
+			this.option.setting.classList.add("hidden");
+			this.option.source();
+			this.needOption = false;
+
+			console.log(currentOption != "" ? this.current.options.find(e => e.subname === currentOption) : this.current.talent);
 			this.close();
-			res(this.current);
+			res(currentOption != "" ? this.current.options.find(e => e.subname === currentOption) : this.current.talent);
 		}
 	}
 	onClose(): void

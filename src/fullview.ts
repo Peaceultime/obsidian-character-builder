@@ -17,11 +17,15 @@ export class CharacterBuilderFullView extends ItemView {
 	file: TFile;
 	name: string;
 
+	added: boolean;
+
 	tabContainer: TabContainer;
 
 	constructor(leaf: WorkspaceLeaf, plugin: any) {
 		super(leaf);
 		this.plugin = plugin;
+
+		this.added = false;
 	}
 
 	getViewType(): string {
@@ -92,6 +96,7 @@ export class CharacterBuilderFullView extends ItemView {
 			this.metadata.levels = [];
 		}
 		this.metadata.type = "character";
+		this.plugin.savePluginData();
 	}
 
 	updateDisplay(): void {
@@ -119,12 +124,9 @@ export class CharacterBuilderFullView extends ItemView {
 			new Notice("Le template est introuvable.");
 			return;
 		}
-
-		console.log(this.file);
-
 		if(await this.app.vault.adapter.exists(filepath) && this.file && this.file.path !== filepath)
 		{
-			new Notice("Ce fichier existe déjà");
+			new Notice("Ce personnage existe déjà");
 			return;
 		}
 

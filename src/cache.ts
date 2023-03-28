@@ -1,3 +1,5 @@
+import { TalentMetadata } from 'src/metadata.ts';
+
 export class CharacterBuilderCache {
 	static _cache = {};
 	static cache(path: string, value: any): any
@@ -48,8 +50,8 @@ export async function initCache(app: App): void {
 	for(let i = 0; i < groups.length; i++)
 		CharacterBuilderCache.cache(`races/${groups[i]}/content`, races.filter(e => e.parent === groups[i]).reduce((p, v) => { p[v.name] = v; return p; }, {}));
 
-	const talents = await Promise.all(files.filter(e => e.path.startsWith(settings.talentsFolder + "/") && !/\d\. /.test(e.basename)).map(e => getTalentContent(e, app)));
-	CharacterBuilderCache.cache("talents", talents.filter(e => !!e));
+	const talents = await Promise.all(files.filter(e => e.path.startsWith(settings.talentsFolder + "/") && !/\d\. /.test(e.basename)).map(async e => new TalentMetadata(e, await app.vault.read(e), app)));
+	CharacterBuilderCache.cache("talents", talents.filter(e => e.valid).reduce((p, v) => { p[v.talent.name] = v; return p; }, {}));
 }
 
 async function getRaceContent(file: TFile, app: App): any {
@@ -77,25 +79,9 @@ async function getRaceContent(file: TFile, app: App): any {
     	return p;
     }, {});
     
-    return { features: features, subraces: subraces, content: desc, name: file.basename, parent: file.parent.name, path: file.path };
+    return { frontmatter: metadata.frontmatter, features: features, subraces: subraces, content: desc, name: file.basename, parent: file.parent.name, path: file.path };
 }
 
-async function getTalentContent(file: TFile, app: App): any {
-	const levelRegex = /[Nn]iveau (\d+)/g;
-	const metadata = app.metadataCache.getFileCache(file);
-	if(!metadata.hasOwnProperty("headings") || !metadata.hasOwnProperty("sections"))
-		return;
-
-	const content = await app.vault.read(app.vault.getAbstractFileByPath(file.path));
-	const links = /[Pp]r[eé]requis ?:? ? ?:? ?(.+)[\n\,]/g.test(content) ? metadata?.links?.map(e => e.link) : undefined;
-	let match, level = Infinity;
-	while((match = levelRegex.exec(content)) !== null)
-		level = Math.min(level, match[1]);
-
-	const type = /\d\. /.test(file.parent.name) ? "initial" : file.parent.name;
-
-	return {filename: file.basename, type: type, options: headingHierarchy(metadata.headings), path: file.path, talentsRequired: links, levelRequired: level === Infinity || type === undefined ? 1 : level, stack: /(?<!non )[Cc]umulable/.test(content) };
-}
 function contentOfHeading(metadata: any, content: string, heading: string, includeHeading: boolean = false)
 {
 	const head = metadata.headings.find(e => e.heading === heading);
@@ -112,26 +98,4 @@ function contentOfHeading(metadata: any, content: string, heading: string, inclu
 			end = sec.position.end.offset;
 	}
 	return content.substring(start, end);
-}
-function headingHierarchy(headings)
-{
-    const hierarchy = [], minLevel = headings.reduce((p, v) => Math.min(p, v.level), 10);
-    for(let i = 0; i < headings.length; i++)
-    {
-        if(headings[i].level === minLevel)
-            hierarchy.push(headingChild(headings.slice(i)));
-    }
-    return hierarchy;
-}
-function headingChild(headings)
-{
-    const level = headings[0].level, nextLevel = headings[1]?.level || 0;
-    let lastIndex = headings.slice(1).findIndex(e => e.level === level);
-    if(lastIndex === -1)
-        lastIndex = headings.length;
-
-    const child = headings.slice(1).reduce((p, v, i, a) => { if(i < lastIndex && v.level === nextLevel) p.push(headingChild(a.slice(i))); return p; }, []);
-    if(child.length !== 0)
-        headings[0].hierarchy = child;
-    return headings[0];
 }

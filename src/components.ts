@@ -49,6 +49,9 @@ export abstract class VisualComponent {
 	}
 	value(value: string): VisualComponent
 	{
+		if(this.component?.getValue() === value)
+			return this;
+
 		this.component?.setValue(value?.toString());
 		this.component?.changeCallback(value);
 
@@ -123,11 +126,15 @@ export class Dropdown extends VisualComponent {
 		{
 			this.cache = this.dataSource;
 		}
-		else
+		else if(this.dataSource && this.src)
 		{
 			let match, target = this.src;
 			target = target.replace(/{(.+?)}/g, (_, m1) => this.dataSource[m1]);
 			this.cache = Cache.cache(target);
+		}
+		else
+		{
+			this.cache = undefined;
 		}
 
 		if(!this.cache)
@@ -139,14 +146,30 @@ export class Dropdown extends VisualComponent {
 			this.disable(false);
 		}
 
-		let keys;
+		let keys, values;
 		if(Array.isArray(this.cache))
+		{
 			keys = this.cache;
-		else
+			values = this.cache;
+		}
+		else if(this.hasDynamicDescription)
+		{
 			keys = Object.keys(this.cache);
+			values = Object.keys(this.cache);
+		}
+		else if(Object.values(this.cache).every(e => typeof e === "string" || typeof e === "number"))
+		{
+			keys = Object.values(this.cache);
+			values = Object.keys(this.cache);
+		}
+		else
+		{
+			keys = Object.keys(this.cache);
+			values = Object.keys(this.cache);
+		}
 
 		for(i = 0; i < keys.length; i++)
-			this.component.addOption(keys[i], keys[i]);
+			this.component.addOption(values[i], keys[i]);
 
 		return this.value("");
 	}
@@ -207,6 +230,7 @@ export class Slider extends VisualComponent {
 	range(min: number, max: number, step: number): Slider
 	{
 		this.component.setLimits(min, max, step);
+		this.tooltipElmt.innerHTML = this.component?.getValue();
 
 		return this;
 	}
