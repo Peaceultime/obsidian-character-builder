@@ -17,15 +17,11 @@ export class CharacterBuilderFullView extends ItemView {
 	file: TFile;
 	name: string;
 
-	added: boolean;
-
 	tabContainer: TabContainer;
 
 	constructor(leaf: WorkspaceLeaf, plugin: any) {
 		super(leaf);
 		this.plugin = plugin;
-
-		this.added = false;
 	}
 
 	getViewType(): string {
@@ -37,7 +33,7 @@ export class CharacterBuilderFullView extends ItemView {
 	}
 
 	getState(): any {
-		return { file: this.file?.path, metadata: this.metadata };
+		return { file: this.file?.path, metadata: this.metadata, tab: this.tabContainer.active };
 	}
 
 	async setState(state: any): void {
@@ -60,7 +56,7 @@ export class CharacterBuilderFullView extends ItemView {
 		}
 		this.metadata.type = "character";
 
-		this.plugin.loading.then(this.render.bind(this));
+		this.plugin.loading.then(this.render.bind(this)).then(() => this.tabContainer.goto(state.tab, true));
 	}
 
 	async onOpen(): void {

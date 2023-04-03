@@ -112,11 +112,11 @@ export class TabContainer {
 		//TODO
 		return false;
 	}*/
-	goto(idx: number): boolean {
-		if(idx < 0 || idx >= this.tabs.length)
+	goto(idx: number, force: boolean = false): boolean {
+		if(!force && idx < 0 || idx >= this.tabs.length)
 			return false;
 
-		if(idx > this.active && !this.tabs[this.active].check())
+		if(!force && idx > this.active && !this.tabs[this.active].check())
 			return false;
 
 		this.tabs[this.active].hide();
