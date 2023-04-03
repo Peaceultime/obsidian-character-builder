@@ -82,7 +82,7 @@ export class BaseTab extends Tab
 			metadata.talents = 6 - value / 2;
 
 			talentText.value(6 - value / 2);
-		}).value(2).tooltip(true);
+		}).value(metadata.armor).tooltip(true);
 
 		new MarkdownArea(this.content, `Backstory`, this.container.view).link(metadata, `flavoring`);
 	}

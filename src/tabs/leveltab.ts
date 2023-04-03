@@ -243,15 +243,8 @@ class TalentPicker extends Modal
 			if(TalentMetadata.includes(picked, talent.talent, true) && !talent.stackable)
 				return false;
 
-			if(talent.dependencies && talent.dependencies.length > 0)
-			{
-				console.log(picked.map(e => TalentMetadata.text(e)), talent.dependencies.map(e => TalentMetadata.text(e)));
-				if(!TalentMetadata.some(talent.dependencies, picked, true))
-				{
-					console.log(false);
-					return false;
-				}
-			}
+			if(talent.dependencies && talent.dependencies.length > 0 && !TalentMetadata.some(talent.dependencies, picked, true))
+				return false;
 		}
 
 		return true;

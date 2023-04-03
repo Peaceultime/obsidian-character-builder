@@ -44,9 +44,7 @@ export interface Metadata {
 	armor: number;
 	luck: number;
 
-	race: string;
-	subrace: string;
-	feature: string;
+	race: Race;
 
 	statBlock: StatBlock;
 	substats: Substats;
@@ -61,7 +59,10 @@ export class TalentMetadata
 	valid: boolean;
 	talent: Talent;
 	file: TFile;
+
+	choices: number;
 	options: Talent[] | string[]; //Dans le futur, il y aura une distinction entre sous talent et option de talent (diférence entre Style de combat ou Faveur de pacte et Metamagie par exemple)
+	
 	dependencies: Talent[];
 	blocking: Talent[]; // TODO
 	level: number;
@@ -71,8 +72,6 @@ export class TalentMetadata
 	content: string;
 
 	heading: string;
-
-	type: string = "test";
 
 	constructor(file: TFile, content: string, app: App)
 	{
@@ -88,7 +87,6 @@ export class TalentMetadata
 		this.metadata = metadata;
 		this.content = content;
 		this.dependencies = /[Pp]r[eé]requis ?:? ? ?:? ?(.+)[\n\,]/g.test(this.content) ? this.metadata?.links?.map(e => TalentMetadata.fromLink(e.link)) : undefined;
-		this.options = hierarchy && hierarchy[0] && hierarchy[0].hierarchy && hierarchy[0].hierarchy.map(e => { return {name: this.talent.name, subname: e.heading.replaceAll("(", "").replaceAll(")", "") }; });
 		this.heading = this.metadata.headings[0].heading;
 		this.stackable = /(?<!non )[Cc]umulable/.test(this.content);
 		this.level = Infinity;
@@ -101,8 +99,8 @@ export class TalentMetadata
 
 		if(metadata.frontmatter)
 		{
-			if(metadata.frontmatter.hasOptions)
-				this.options = metadata.frontmatter.options || this.options;
+			if(metadata.frontmatter.options)
+				this.options = metadata.frontmatter.options.map(e => { return { name: this.talent.name, subname: e }; });
 		}
 	}
 	static fromLink(link: string): Talent
@@ -175,7 +173,91 @@ export interface Talent
 	name: string;
 	subname: string //Pour les talents comme Sorts#Instinct
 }
+export interface Collection
+{
+	[name: string]: string;
+}
+export class RaceMetadata
+{
+	valid: boolean;
+	race: Race;
+	file: TFile;
 
+	health: number;
+
+	subraces: Collection;
+	features: Collection;
+
+	metadata: any;
+	content: string;
+
+	constructor(file: TFile, content: string, app: App)
+	{
+		const metadata = app.metadataCache.getFileCache(file);
+
+		if(!metadata.hasOwnProperty("headings") || !metadata.hasOwnProperty("sections"))
+			return;
+
+		this.valid = true;
+		this.file = file;
+		this.metadata = metadata;
+		this.content = content.substring(metadata.headings[0].position.start.offset, metadata.headings[2].position.start.offset - 1);
+		this.subraces = metadata.headings.slice(0, metadata.headings.findIndex(e => e.heading.startsWith("BONUS RACIA"))).map((e, i) => i).slice(3).map(e => metadata.headings[e].heading).reduce((p, v) => {
+			p[v] = contentOfHeading(metadata, content, v, true); return p;
+		}, {});
+		const idx = metadata.headings.findIndex(e => e.heading.startsWith("BONUS RACIA"));
+		const start = metadata.headings[idx].position.end.offset, end = idx === metadata.headings.length - 1 ? content.length - 1 : metadata.headings[idx + 1].position.start.offset;
+		this.features = metadata.sections.reduce((p, v) => { 
+			if(v.position.start.offset >= start && v.position.end.offset <= end) 
+			{
+				const paragraph = content.substring(v.position.start.offset, v.position.end.offset);
+				const match = /\*\*(.+)\*\*/g.exec(paragraph);
+
+				if(match)
+					p[match[1].replace(/\*/g, "").replace(".", "")] = paragraph;
+			}
+			return p;
+		}, {});
+
+		this.race = { name: file.basename };
+
+		if(metadata.frontmatter)
+		{
+			if(metadata.frontmatter.hasOwnProperty("hp"))
+			{
+				this.health = metadata.frontmatter.hp;
+			}
+			if(metadata.frontmatter.hasOwnProperty("bonus1"))
+			{
+				this.race.bonus1 = metadata.frontmatter.bonus1;
+			}
+			if(metadata.frontmatter.hasOwnProperty("bonus2"))
+			{
+				this.race.bonus2 = metadata.frontmatter.bonus2;
+			}
+			if(metadata.frontmatter.hasOwnProperty("bonus3"))
+			{
+				this.race.bonus3 = metadata.frontmatter.bonus3;
+			}
+			if(metadata.frontmatter.hasOwnProperty("penality"))
+			{
+				this.race.bonus1 = metadata.frontmatter.malus1;
+			}
+		}
+	}
+}
+export interface Race
+{
+	name: string;
+	subname: string;
+	feature: string;
+
+	bonus1: string;
+	bonus2: string;
+	bonus3: string;
+	bonus4?: string;
+	malus1?: string;
+}
 
 function headingHierarchy(headings)
 {
@@ -198,4 +280,21 @@ function headingChild(headings)
     if(child.length !== 0)
         headings[0].hierarchy = child;
     return headings[0];
+}
+function contentOfHeading(metadata: any, content: string, heading: string, includeHeading: boolean = false)
+{
+	const head = metadata.headings.find(e => e.heading === heading);
+	const start = includeHeading ? head.position.start.offset : head.position.end.offset;
+	let end;
+	
+	for(let i = 0; i < metadata.sections.length; i++)
+	{
+		const sec = metadata.sections[i];
+		if(start < sec.position.start.offset && sec.type === "heading")
+			break;
+
+		if(start < sec.position.start.offset)
+			end = sec.position.end.offset;
+	}
+	return content.substring(start, end);
 }

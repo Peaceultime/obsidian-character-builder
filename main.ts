@@ -19,6 +19,7 @@ export default class CharacterBuilder extends Plugin {
 				this.app.metadataCache.on("resolved", async () => {
 					this.app.metadataCache.off("resolved");
 					await initCache(this.app);
+					window.CharacterBuilderCache = Cache;
 					res();
 				});
 			}.bind(this));
@@ -53,9 +54,7 @@ export default class CharacterBuilder extends Plugin {
 
 							if(!leaf)
 								leaf = this.app.workspace.getLeaf(true);
-							await leaf.setViewState({ type: VIEW_TYPE_CHARACTER_BUILDER_FULL, active: true });
-							leaf.view.openData(file);
-							leaf.view.refresh(true);
+							await leaf.setViewState({ type: VIEW_TYPE_CHARACTER_BUILDER_FULL, active: true, state: { file: file.path } });
 							this.app.workspace.revealLeaf(leaf);
 						});
 					});
@@ -64,40 +63,10 @@ export default class CharacterBuilder extends Plugin {
 		);
 
 		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(window.setInterval(() => this.savePluginData(), 5 * 60 * 1000));
-
-		this.app.workspace.onLayoutReady(() => {
-			const leaf = this.app.workspace.getLeaf(true);
-			this.app.workspace.detachLeavesOfType(VIEW_TYPE_CHARACTER_BUILDER_FULL);
-			this.loadSavedViews();
-			leaf.detach();
-		});
-	}
-
-	async loadSavedViews() {
-		await this.loading;
-
-		if(!this.savedData || !this.savedData.views)
-			return;
-
-		for(let i = 0; i < this.savedData.views.length; i++)
-		{
-			const view = this.savedData.views[i];
-			const file = this.app.vault.getAbstractFileByPath(view.path);
-			const leaf = this.app.workspace.getLeaf(true);
-			await leaf.setViewState({ type: VIEW_TYPE_CHARACTER_BUILDER_FULL, active: view.active });
-			if(file)
-			{
-				leaf.view.file = file;
-			}
-			leaf.view.metadata = view.metadata;
-			leaf.view.refresh(true);
-			this.app.workspace.revealLeaf(leaf);
-		}
+		this.registerInterval(window.setInterval(() => this.app.workspace.saveLayout(), 5 * 60 * 1000));
 	}
 
 	async onunload() {
-		this.app.workspace.detachLeavesOfType(VIEW_TYPE_CHARACTER_BUILDER_FULL);
 		console.clear();
 	}
 
@@ -109,7 +78,6 @@ export default class CharacterBuilder extends Plugin {
 	}
 
 	async savePluginData(): void {
-		this.savedData.views = this.tabs.map(e => { return { metadata: e.metadata, path: e.file?.path, active: e.leaf === this.app.workspace.activeLeaf }; });
 		this.savedData.settings = this.settings;
 
 		await this.saveData(this.savedData);

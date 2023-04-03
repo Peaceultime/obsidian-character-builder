@@ -36,6 +36,33 @@ export class CharacterBuilderFullView extends ItemView {
 		return `${!!this.file ? 'Modification' : 'Création'} de ${this.name || this.metadata?.name || 'personnage'} - ${this.contentEl.querySelector(".character-builder-breadcrumb-tab:not(.tab-hidden)")?.children[0]?.textContent || 'Base du personnage'}`;
 	}
 
+	getState(): any {
+		return { file: this.file?.path, metadata: this.metadata };
+	}
+
+	async setState(state: any): void {
+		this.file = this.plugin.app.vault.getAbstractFileByPath(state.file);
+		this.metadata = state.metadata;
+
+		if(this.file)
+		{
+			this.metadata = Object.assign({}, JSON.parse(JSON.stringify(this.app.metadataCache.getFileCache(this.file).frontmatter)), this.metadata);
+			this.metadata.position = undefined;
+			this.name = this.metadata.name;
+		}
+		if(!this.metadata)
+		{
+			this.metadata = {};
+			this.metadata.statBlock = JSON.parse(JSON.stringify(StatBlock));
+			this.metadata.substats = {};
+			this.metadata.levels = [];
+			this.metadata.race = {};
+		}
+		this.metadata.type = "character";
+
+		this.plugin.loading.then(this.render.bind(this));
+	}
+
 	async onOpen(): void {
 		const {contentEl} = this;
 
@@ -45,13 +72,10 @@ export class CharacterBuilderFullView extends ItemView {
 		loading.createSpan({ cls: "character-builder-loading-bar" });
 
 		this.plugin.addTab(this);
-		this.plugin.loading.then(this.render.bind(this));
 	}
 
 	render(): void
 	{
-		this.openData();
-
 		const {contentEl} = this;
 
 		contentEl.empty();
@@ -78,25 +102,7 @@ export class CharacterBuilderFullView extends ItemView {
 	{
 		this.tabContainer.render(force);
 		this.updateDisplay();
-	}
-
-	openData(file: TFile): void {
-		if(file)
-		{
-			this.file = file;
-			this.metadata = JSON.parse(JSON.stringify(this.app.metadataCache.getFileCache(file).frontmatter));
-			this.metadata.position = undefined;
-			this.name = this.metadata.name;
-		}
-		else
-		{
-			this.metadata = {};
-			this.metadata.statBlock = JSON.parse(JSON.stringify(StatBlock));
-			this.metadata.substats = {};
-			this.metadata.levels = [];
-		}
-		this.metadata.type = "character";
-		this.plugin.savePluginData();
+		this.plugin.app.workspace.saveLayout();
 	}
 
 	updateDisplay(): void {
