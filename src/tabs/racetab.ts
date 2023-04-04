@@ -25,10 +25,10 @@ export class RaceTab extends Tab
 		});
 
 		race.onChange((value) => {
+			statBlock.setRace(Cache.cache(`races/${metadata.setting}/content/${value}/race`));
+
 			subrace.update();
 			feature.update();
-
-			statBlock.update();
 		});
 	}
 }

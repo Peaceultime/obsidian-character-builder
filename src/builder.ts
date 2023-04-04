@@ -10,12 +10,12 @@ export function print(data: any, template: string): string
 					.replaceAll("{substatblock}", substats(currentSubstats))
 					.replaceAll("{armor}", data.armor)
 					.replaceAll("{luck}", data.luck)
-					.replaceAll("{race-name}", `${data.race}`)
-					.replaceAll("{race-desc}", `![[${settings.racesFolder}/${data.setting}/${data.race}#TRAITS GÉNÉRAUX]]\n![[${settings.racesFolder}/${data.setting}/${data.race}#BONUS GLOBAUX]]`)
-					.replaceAll("{subrace-name}", `${data.subrace}`)
-					.replaceAll("{subrace-desc}", `![[${settings.racesFolder}/${data.setting}/${data.race}#${data.subrace}]]`)
-					.replaceAll("{feature-name}", `${data.feature}`)
-					.replaceAll("{feature-desc}", Cache.cache(`races/${data.setting}/content/${data.race}/features/${data.feature}`))
+					.replaceAll("{race-name}", `${data.race.name}`)
+					.replaceAll("{race-desc}", `![[${settings.racesFolder}/${data.setting}/${data.race.name}#TRAITS GÉNÉRAUX]]\n![[${settings.racesFolder}/${data.setting}/${data.race.name}#BONUS GLOBAUX]]`)
+					.replaceAll("{subrace-name}", `${data.race.subname}`)
+					.replaceAll("{subrace-desc}", `![[${settings.racesFolder}/${data.setting}/${data.race.name}#${data.race.subname}]]`)
+					.replaceAll("{feature-name}", `${data.race.feature}`)
+					.replaceAll("{feature-desc}", Cache.cache(`races/${data.setting}/content/${data.race.name}/features/${data.race.feature}`))
 					.replaceAll("{flavoring}", data.flavoring)
 					.replaceAll(/\{begin-level\}(.*)\{end-level\}/gs, (d, p1) => {
 						let result = "";
@@ -36,7 +36,7 @@ export function print(data: any, template: string): string
 										p.substats[key] += value;
 
 								return p;
-							}, {statBlock: JSON.parse(JSON.stringify(data.statBlock)), substats: JSON.parse(JSON.stringify(data.substats)), hp: Cache.cache(`races/${data.setting}/content/${data.race}/frontmatter/hp`), focus: 0});
+							}, {statBlock: JSON.parse(JSON.stringify(data.statBlock)), substats: JSON.parse(JSON.stringify(data.substats)), hp: Cache.cache(`races/${data.setting}/content/${data.race.name}/health`), focus: 0});
 
 							result += text.replaceAll("{level-nb}", level.level)
 									.replaceAll("{level-hp}", `${sumValues.hp} (+${level.hp})`)

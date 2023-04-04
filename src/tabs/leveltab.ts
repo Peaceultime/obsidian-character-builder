@@ -61,7 +61,7 @@ export class LevelTab extends Tab
 		const grpEl = group(this.content, `Niveau ${level.level}`, collapsed);
 
 		grpEl.createDiv("character-builder-splitter-container", split => {
-			const hp = new Slider(split, "PV supplémentaires").range(0, 13, 1).link(level, "hp").desc("13 points à repartir entre PV et focus. " + (level.level === 1 ? `+${Cache.cache(`races/${this.metadata.setting}/content/${this.metadata.race}/frontmatter/hp`)} PV de bonus racial au niveau 1.` : ""));
+			const hp = new Slider(split, "PV supplémentaires").range(0, 13, 1).link(level, "hp").desc("13 points à repartir entre PV et focus. " + (level.level === 1 ? `+${Cache.cache(`races/${this.metadata.setting}/content/${this.metadata.race.name}/health`)} PV de bonus racial au niveau 1.` : ""));
 			const focus = new Slider(split, "Focus supplémentaire").range(0, 13, 1).link(level, "focus");
 
 			hp.onChange((value) => focus.value(13 - value));

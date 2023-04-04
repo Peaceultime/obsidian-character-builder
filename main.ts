@@ -62,6 +62,11 @@ export default class CharacterBuilder extends Plugin {
 			})
 		);
 
+		this.registerEvent(this.app.vault.on("delete", file => {
+			const tab = this.tabs.find(e => e.file && e.file === file);
+			if(tab) tab.leaf.detach();
+		}));
+
 		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
 		this.registerInterval(window.setInterval(() => this.app.workspace.saveLayout(), 5 * 60 * 1000));
 	}

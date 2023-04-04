@@ -387,24 +387,20 @@ If your plugin does not need CSS, delete this file.
 .character-builder-talent-list {
     width: 20%;
     border-right: 1px solid var(--background-modifier-border);
-    margin: 8px 2px;
+    margin: 8px 0px;
     height: calc(100% - 16px);
     overflow: auto;
 }
 
-.character-builder-talent-item {
-    padding: 5px 12px;
+.character-builder-talent-item, .character-builder-talent-group-header {
+    border-radius: 4px;
     transition: background-color .2s;
     cursor: pointer;
+    padding: 5px 12px;
 }
 
-.character-builder-talent-item:hover {
+.character-builder-talent-item:hover, .character-builder-talent-group-header:hover {
     background-color: var(--interactive-hover);
-}
-
-.character-builder-talent-group-header {
-    padding: 0.3em 0;
-    cursor: pointer;
 }
 
 .character-builder-talent-list-container {
@@ -423,6 +419,7 @@ If your plugin does not need CSS, delete this file.
 .character-builder-talent-modal {
     overflow: hidden;
     flex: auto;
+    padding: var(--size-4-4) var(--size-4-4) var(--size-4-4) var(--size-4-2);
 }
 
 .character-builder-talent-modal .modal-content {
@@ -440,13 +437,13 @@ If your plugin does not need CSS, delete this file.
 }
 
 .character-builder-talent-group-container {
-    padding: 2px;
-    margin: 2px;
+    padding: 2px 2px 0px 0px;
+    margin: 2px 2px 0px 0px;
     position: relative;
 }
 
 .character-builder-talent-group-content {
-    margin: .2em;
+    margin: .2em .2em .2em 12px;
     padding-left: .5em;
     border-left: 1px solid var(--background-modifier-border);
 }
@@ -457,13 +454,14 @@ If your plugin does not need CSS, delete this file.
     height: 6px;
     transition: transform 100ms ease-in-out;
     position: absolute;
-    top: 10px;
-    left: 0;
-    border: 1px solid var(--nav-collapse-icon-color);
+    top: 11px;
+    left: 8px;
+    border: 2px solid var(--nav-collapse-icon-color);
     border-top: none;
     border-left: none;
     transform: rotate(45deg);
     transition: transform .2s ease;
+    border-radius: 1px;
 }
 
 .collapsed .character-builder-talent-group-header:before, .collapsed .character-builder-group-title:before {
@@ -484,7 +482,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 .character-builder-talent-group-title {
-    padding-left: 1em;
+    padding-left: .7em;
 }
 
 .character-builder-talents-container {

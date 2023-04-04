@@ -56,7 +56,7 @@ export class CharacterBuilderFullView extends ItemView {
 		}
 		this.metadata.type = "character";
 
-		this.plugin.loading.then(this.render.bind(this)).then(() => this.tabContainer.goto(state.tab, true));
+		this.plugin.loading.then(this.render.bind(this)).then(() => { if(state.tab) this.tabContainer.goto(state.tab, true) });
 	}
 
 	async onOpen(): void {
@@ -84,7 +84,7 @@ export class CharacterBuilderFullView extends ItemView {
 		const levelsTab = this.tabContainer.add(LevelTab, "Niveaux").onOpen(() => this.refresh());
 
 		new Setting(contentEl.createDiv("character-builder-full-view-footer")).addButton(btn => btn.setButtonText("Suivant").onClick(() => this.tabContainer.next())).addButton(btn => btn.setButtonText(this.file ? 'Modifier' : 'Créer').onClick(() => {
-			if(this.metadata.name.trim() === '')
+			if(!this.metadata.name || this.metadata.name.trim() === '')
 			{
 				new Notice("Veuillez saisir un nom pour créer la fiche de personnage.");
 				return;

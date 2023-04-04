@@ -241,7 +241,7 @@ export class RaceMetadata
 			}
 			if(metadata.frontmatter.hasOwnProperty("penality"))
 			{
-				this.race.bonus1 = metadata.frontmatter.malus1;
+				this.race.malus1 = metadata.frontmatter.penality;
 			}
 		}
 	}

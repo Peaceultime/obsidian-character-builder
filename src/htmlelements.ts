@@ -1,3 +1,4 @@
+import { DropdownComponent } from 'obsidian';
 import { CharacterBuilderCache as Cache } from 'src/cache.ts';
 import { Stat, StatBlock, StatBlockNames } from 'src/metadata.ts';
 import { Dropdown } from 'src/components.ts';
@@ -99,7 +100,7 @@ export class StatBlockElement
 
 	pickerElmts: HTMLStatELement[] = [];
 	racePickerElmts: Dropdown[] = [];
-	dropdownGroup: DropdownGroup;
+	dropdownGroup: RacialDropdownGroup;
 	normalElmts: HTMLELement[] = [];
 	highElmts: HTMLELement[] = [];
 	extremeElmts: HTMLELement[] = [];
@@ -131,7 +132,7 @@ export class StatBlockElement
 		this.header(Object.values(StatBlockNames));
 
 		if(options?.hasRacialValuePicker)
-			this.dropdownGroup = new DropdownGroup();
+			this.dropdownGroup = new RacialDropdownGroup(this);
 
 		const stats = Object.keys(StatBlockNames);
 		for(let i = 0; i < stats.length; i++)
@@ -158,7 +159,7 @@ export class StatBlockElement
 				}).value(stat.initial || settings.minStat));
 			}
 			if(options?.hasRacialValuePicker)
-				this.racePickerElmts.push(this.dropdownGroup.add(new DropdownComponent(this.bufferElmt, )));
+				this.racePickerElmts.push(this.dropdownGroup.add(new DropdownComponent(this.bufferElmt)));
 			if(options?.hasNormalRow)
 				this.normalElmts.push(this.bufferElmt.createEl("i"));
 			if(options?.hasHighRow)
@@ -170,13 +171,19 @@ export class StatBlockElement
 		if(options?.hasValuePicker)
 			this.row("Statistique", this.pickerElmts.map(e => e.component));
 		if(options?.hasRacialValuePicker)
-			this.row("Bonus raciaux", this.racePickerElmts.map(e => e.component));
+			this.row("Bonus raciaux", this.racePickerElmts.map(e => e.selectEl));
 		if(options?.hasNormalRow)
 			this.row("Réussite normale", this.normalElmts);
 		if(options?.hasHighRow)
 			this.row("Réussite haute", this.highElmts);
 		if(options?.hasExtremeRow)
 			this.row("Réussite extreme", this.extremeElmts);
+
+		if(options?.hasRacialValuePicker && metadata.race.name)
+		{
+			this.dropdownGroup.setRace(Cache.cache(`races/${metadata.setting}/content/${metadata.race.name}/race`));
+			this.dropdownGroup.setRace(metadata.race, false);
+		}
 
 		if(options?.showRemaining)
 		{
@@ -187,23 +194,49 @@ export class StatBlockElement
 
 		this.update();
 	}
-	update()
+	update(): void
 	{
 		const stats = Object.keys(StatBlockNames);
 		for(let i = 0; i < stats.length; i++)
 		{
+			const stat = this.metadata.statBlock[stats[i]];
+			if(this.metadata.race.bonus1 === stats[i] || this.metadata.race.bonus2 === stats[i] || this.metadata.race.bonus3 === stats[i])
+				stat.bonus = 3;
+			else if(this.metadata.race.bonus4 === stats[i])
+				stat.bonus = 6;
+			else if(this.metadata.race.malus1 === stats[i])
+				stat.bonus = -6;
+			else
+				stat.bonus = 0;
+
 			if(this.options?.hasNormalRow && this.normalElmts[i])
-				this.normalElmts[i].innerHTML = Math.floor(this.metadata.statBlock[stats[i]].initial);
+				this.normalElmts[i].innerHTML = Math.floor(stat.initial + stat.bonus);
 			if(this.options?.hasHighRow && this.highElmts[i])
-				this.highElmts[i].innerHTML = Math.floor(this.metadata.statBlock[stats[i]].initial / 2);
+				this.highElmts[i].innerHTML = Math.floor((stat.initial + stat.bonus) / 2);
 			if(this.options?.hasExtremeRow && this.extremeElmts[i])
-				this.extremeElmts[i].innerHTML = Math.floor(this.metadata.statBlock[stats[i]].initial / 5);
+				this.extremeElmts[i].innerHTML = Math.floor((stat.initial + stat.bonus) / 5);
 		}
 
 		if(this.options?.showRemaining && this.remainingElmt)
 			this.remainingElmt.innerHTML = this.remaining?.toString();
 
-		//Update racial picker choices
+		this.dropdownGroup?.update();
+	}
+	setRace(race: Race): void
+	{
+		this.metadata.race.name = race.name;
+		this.metadata.race.subname = "";
+		this.metadata.race.feature = "";
+		this.metadata.race.bonus1 = race.bonus1;
+		this.metadata.race.bonus2 = race.bonus2;
+		this.metadata.race.bonus3 = race.bonus3;
+		this.metadata.race.bonus4 = race.bonus4;
+		this.metadata.race.malus1 = race.malus1;
+
+		if(this.options?.hasRacialValuePicker)
+			this.dropdownGroup.setRace(this.metadata.race);
+
+		this.update();
 	}
 	private header(headers: string[]): void
 	{
@@ -222,20 +255,133 @@ export class StatBlockElement
 			tr.createEl("td", { cls: "character-builder-table-cell" }).appendChild(elmts[i]);
 	}
 }
-class DropdownGroup
+class RacialDropdownGroup
 {
-	options: string[];
+	statBlock: StatBlockElement;
+	race: Race;
 
 	dropdowns: DropdownComponent[];
 
-	constructor(options: string[])
+	constructor(statBlock: StatBlockElement)
 	{
+		this.statBlock = statBlock;
+		this.dropdowns = [];
+	}
+	setRace(race: Race, disable: boolean = true): void
+	{
+		this.race = race;
 
+		if(disable)
+			for(let i = 0; i < this.dropdowns.length; i++)
+				this.dropdowns[i].setDisabled(false).setValue();
+
+		if(this.race.bonus1)
+		{
+			const drop = this.dropdowns[Object.keys(StatBlockNames).findIndex(e => e === this.race.bonus1)]
+			drop.setValue("+3");
+			if(disable)
+				drop.setDisabled(true);
+		}
+		if(this.race.bonus2)
+		{
+			const drop = this.dropdowns[Object.keys(StatBlockNames).findIndex(e => e === this.race.bonus2)]
+			drop.setValue("+3");
+			if(disable)
+				drop.setDisabled(true);
+		}
+		if(this.race.bonus3)
+		{
+			const drop = this.dropdowns[Object.keys(StatBlockNames).findIndex(e => e === this.race.bonus3)]
+			drop.setValue("+3");
+			if(disable)
+				drop.setDisabled(true);
+		}
+		if(this.race.bonus4)
+		{
+			const drop = this.dropdowns[Object.keys(StatBlockNames).findIndex(e => e === this.race.bonus4)]
+			drop.setValue("+6");
+			if(disable)
+				drop.setDisabled(true);
+		}
+		if(this.race.malus1)
+		{
+			const drop = this.dropdowns[Object.keys(StatBlockNames).findIndex(e => e === this.race.malus1)]
+			drop.addOption("-6", "-6");
+			drop.setValue("-6");
+			if(disable)
+				drop.setDisabled(true);
+		}
+	
+		this.statBlock.update();
 	}
 	add(dropdown: DropdownComponent): DropdownComponent
 	{
-		//dropdown.addOptions();
+		const idx = this.dropdowns.push(dropdown) - 1;
+		dropdown.onChange(value => {
+			const statName = Object.keys(StatBlockNames)[idx];
+			
+			if(value === "+3")
+			{
+				if(!this.race.bonus1)
+					this.race.bonus1 = statName;
+				else if(!this.race.bonus2)
+					this.race.bonus2 = statName;
+				else if(!this.race.bonus3)
+					this.race.bonus3 = statName;
+			}
+			else if(value === "+6")
+				this.race.bonus4 = statName;
+			else
+			{
+				if(this.race.bonus1 === statName)
+					this.race.bonus1 = undefined;
+				else if(this.race.bonus2 === statName)
+					this.race.bonus2 = undefined;
+				else if(this.race.bonus3 === statName)
+					this.race.bonus3 = undefined;
+				else if(this.race.bonus4 === statName)
+					this.race.bonus4 = undefined;
+			}
+
+			this.statBlock.update();
+		});
+
+		this.update();
 
 		return dropdown;
+	}
+	update()
+	{
+		const options = [];
+		if(this.race?.malus1 && !this.race?.bonus4)
+		{
+			options.push("+6");
+		}
+		if(!this.race?.bonus1 || !this.race?.bonus2 || !this.race?.bonus3)
+		{
+			options.push("+3");
+		}
+
+		for(let i = 0; i < this.dropdowns.length; i++)
+		{
+			const value = this.dropdowns[i].getValue();
+			let j, L = this.dropdowns[i].selectEl.options.length - 1;
+			for(j = L; j >= 0; j--)
+			{
+				if(!value || value !== this.dropdowns[i].selectEl.options[j].value)
+					this.dropdowns[i].selectEl.remove(j);
+			}
+
+			this.dropdowns[i].addOption("", undefined);
+
+			if(value === "-6")
+				this.dropdowns[i].addOption("-6", "-6");
+
+			for(j = 0; j < options.length; j++)
+			{
+				if(!value || value !== options[j])
+					this.dropdowns[i].addOption(options[j], options[j]);
+			}
+		}
 	}
 }
