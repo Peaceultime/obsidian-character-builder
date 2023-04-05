@@ -12,6 +12,9 @@ export class LevelTab extends Tab
 
 	talentPicker: TalentPicker;
 	talentList: TalentList;
+
+	hps: Slider[];
+	focuses: Slider[];
 	render(): void
 	{
 		const metadata = this.metadata = this.request("metadata");
@@ -20,6 +23,8 @@ export class LevelTab extends Tab
 		this.requiredList = [];
 
 		this.talents = [];
+		this.hps = [];
+		this.focuses = [];
 
 		new Setting(this.content).addButton(btn => btn.setIcon("lucide-plus-circle").onClick(() => {
 			const level = {
@@ -61,21 +66,28 @@ export class LevelTab extends Tab
 		const grpEl = group(this.content, `Niveau ${level.level}`, collapsed);
 
 		grpEl.createDiv("character-builder-splitter-container", split => {
-			const hp = new Slider(split, "PV supplémentaires").range(0, 13, 1).link(level, "hp").desc("13 points à repartir entre PV et focus. " + (level.level === 1 ? `+${Cache.cache(`races/${this.metadata.setting}/content/${this.metadata.race.name}/health`)} PV de bonus racial au niveau 1.` : ""));
-			const focus = new Slider(split, "Focus supplémentaire").range(0, 13, 1).link(level, "focus");
+			split.createDiv(undefined, div => {
+				const hp = new Slider(div, "PV", false).range(0, 13, 1).link(level, "hp");
+				const focus = new Slider(div, "Focus", false).range(0, 13, 1).link(level, "focus").desc("13 points à repartir entre PV et focus.");
 
-			hp.onChange((value) => focus.value(13 - value));
-			focus.onChange((value) => hp.value(13 - value));
+				hp.onChange((value) => { focus.value(13 - value); this.updateSliderTooltips(); });
+				focus.onChange((value) => { hp.value(13 - value); this.updateSliderTooltips(); });
 
-			if(level.level % 2 === 0)
-				new Dropdown(split, "+3 sur une stat", false).source(StatBlockNames).link(level, "buffedStat").desc("Tous les niveaux pairs, vous obtenez un bonus de +3 sur une stat principale, dans la limite de 60 points au total.");
-		});
+				this.hps.push(hp);
+				this.focuses.push(focus);
+
+				if(level.level % 2 === 0)
+					new Dropdown(div, "+3 sur une stat", false).source(StatBlockNames).link(level, "buffedStat").desc("Tous les niveaux pairs, vous obtenez un bonus de +3 sur une stat principale, dans la limite de 60 points au total.");
+			})
 		
-		const talentList = new TalentList(grpEl, level.talents);
-		talentList.onRemove((talent: Talent) => {
-			this.talents.splice(this.talents.findIndex(e => TalentMetadata.compare(e, talent)), 1);
-			level.talents.splice(level.talents.findIndex(e => TalentMetadata.compare(e, talent)), 1);
-		}).onAddButton(() => this.pickTalent(talentList, level));
+			const talentList = new TalentList(split, level.talents);
+			talentList.onRemove((talent: Talent) => {
+				this.talents.splice(this.talents.findIndex(e => TalentMetadata.compare(e, talent)), 1);
+				level.talents.splice(level.talents.findIndex(e => TalentMetadata.compare(e, talent)), 1);
+			}).onAddButton(() => this.pickTalent(talentList, level));
+		});
+
+		this.updateSliderTooltips();
 	}
 	pickTalent(talentList: TalentList, level: Level)
 	{
@@ -92,6 +104,18 @@ export class LevelTab extends Tab
 			talentList.add(talent);
 		}).catch(err => err && console.error(err));
 	}
+	updateSliderTooltips()
+	{
+		let hp = Cache.cache(`races/${this.metadata.setting}/content/${this.metadata.race.name}/health`), focus = 0;
+		for(let i = 0; i < this.hps.length; i++)
+		{
+			hp += this.hps[i].component.getValue();
+			this.hps[i].tooltip(hp);
+
+			focus += this.focuses[i].component.getValue();
+			this.focuses[i].tooltip(focus);
+		}
+	}
 }
 
 class TalentList
@@ -105,9 +129,12 @@ class TalentList
 	removeCb: (talent: Talent) => void;
 	constructor(parent: HTMLElement, talents: Talent[])
 	{
-		this.container = parent.createDiv("character-builder-talents-container");
-		this.button = new ButtonComponent(this.container).setIcon("lucide-plus").onClick(() => this.addCb && this.addCb());
-		this.content = this.container.createDiv("character-builder-talents-content");
+		this.container = parent.createDiv();
+		this.container.createEl("h5", { cls: "character-builder-talents-title", text: "Talents" });
+		this.container.createDiv("character-builder-talents-container", div => {
+			new ButtonComponent(div).setIcon("lucide-plus").onClick(() => this.addCb && this.addCb());
+			this.content = div.createDiv("character-builder-talents-content");
+		});
 		this.talents = [];
 		this.talentsEl = [];
 
@@ -149,7 +176,7 @@ class TalentList
 
 class TalentPicker extends Modal
 {
-	talents: TalentMetadata[];
+	talents: any;
 
 	current: TalentMetadata;
 
@@ -166,7 +193,7 @@ class TalentPicker extends Modal
 	constructor(app: App)
 	{
 		super(app);
-		this.talents = Object.values(Cache.cache("talents"));
+		this.talents = Cache.cache("talents");
 
 		let { contentEl, modalEl } = this;
 		modalEl.classList.add("character-builder-talent-modal");
@@ -188,7 +215,13 @@ class TalentPicker extends Modal
 			this.rej = rej;
 			this.open();
 
-			const pickableTalents = [];
+			this.listElmt.empty();
+			this.content.empty();
+
+			for(const [title, content] of Object.entries(this.talents))
+				this.addGroup(title, content, this.listElmt, picked, level);
+
+			/*const pickableTalents = [];
 			for(let i = 0; i < this.talents.length; i++)
 			{
 				const talent = this.talents[i];
@@ -196,20 +229,17 @@ class TalentPicker extends Modal
 				{
 					pickableTalents.push(talent);
 				}
-			}
+			}*/
 
-			const groups = pickableTalents.reduce((p, v) => {
+			/*const groups = pickableTalents.reduce((p, v) => {
 				const parent = v.file.parent.name;
 				if(!p.hasOwnProperty(parent))
 					p[parent] = [];
 				p[parent].push(v);
 				return p;
-			}, {});
+			}, {});*/
 
-			this.listElmt.empty();
-			this.content.empty();
-
-			for(const [key, value] of Object.entries(groups))
+			/*for(const [key, value] of Object.entries(groups))
 			{
 				this.listElmt.createDiv("character-builder-talent-group-container", container =>  {
 					let header;
@@ -224,8 +254,51 @@ class TalentPicker extends Modal
 						value.forEach(e => div.createDiv("character-builder-talent-item", item => { item.addEventListener("click", () => this.display(e)); }).createSpan({ cls: "character-builder-talent-item-title", text: TalentMetadata.text(e.talent) }));
 					});
 				});
-			}
+			}*/
 		});
+	}
+
+	addGroup(title: string, content: any, parent: HTMLElement, picked: Talent[], level: number): boolean
+	{
+		const container = parent.createDiv("character-builder-talent-group-container");
+		const header = container.createDiv("character-builder-talent-group-header", header => {
+			header.createSpan({ cls: "character-builder-talent-group-title", text: title });
+			header.addEventListener("click", () => container.classList.toggle("collapsed"));
+		});
+		const div = container.createDiv("character-builder-talent-group-content");
+
+		let count = 0;
+		for(const [childTitle, childContent] of Object.entries(content))
+		{
+			if(childContent instanceof TalentMetadata)
+			{
+				if(this.available(childContent, picked, level))
+				{
+					this.addTalent(childTitle, childContent, div);
+					count++;
+				}
+			}
+			else
+			{
+				if(this.addGroup(childTitle, childContent, div, picked, level))
+					count++;
+			}
+		}
+
+		if(count === 0)
+		{
+			container.remove();
+			return false;
+		}
+
+		return true;
+	}
+
+	addTalent(title: string, talent: TalentMetadata, parent: HTMLElement): void
+	{
+		parent.createDiv("character-builder-talent-item", item => { 
+			item.addEventListener("click", () => this.display(talent));
+		}).createSpan({ cls: "character-builder-talent-item-title", text: title });
 	}
 
 	available(talent: TalentMetadata, picked: Talent[], level: number): boolean

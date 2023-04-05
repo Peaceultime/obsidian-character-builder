@@ -2,6 +2,7 @@ import { DropdownComponent } from 'obsidian';
 import { CharacterBuilderCache as Cache } from 'src/cache.ts';
 import { Stat, StatBlock, StatBlockNames } from 'src/metadata.ts';
 import { Dropdown } from 'src/components.ts';
+import Substats from 'src/substats.js';
 
 export class HTMLStatElement {
 	min: number;
@@ -383,5 +384,93 @@ class RacialDropdownGroup
 					this.dropdowns[i].addOption(options[j], options[j]);
 			}
 		}
+	}
+}
+export interface SubstatsOptions
+{
+	statAmount?: number;
+
+	hasNormal?: boolean;
+	hasHigh?: boolean;
+	hasExtreme?: boolean;
+	hasStatPicker?: boolean;
+	hasValuePicker?: boolean;
+
+	showRemaining?: boolean;
+
+	level?: number;
+}
+export class SubstatPicker
+{
+	container: HTMLElement;
+
+	substatsElmts: HTMLELement[] = [];
+
+	remaining: number;
+	remainingElmt: HTMLElement;
+
+	metadata: Metadata;
+	options: SubstatsOptions;
+
+	constructor(parent: HTMLElement, metadata: Metadata, options: SubstatsOptions)
+	{
+		const settings = Cache.cache("settings");
+
+		this.container = parent.createDiv("character-builder-substats-container");
+
+		this.metadata = metadata;
+		this.options = options;
+		this.remaining = options.statAmount ?? settings.substatAmount;
+
+		const substats = Object.keys(this.metadata.substats);
+		for(let i = 0; i < substats.length; i++)
+		{
+			this.addStat(substats[i], this.metadata.substats[substats[i]]);
+		}
+
+		if(options?.showRemaining)
+		{
+			const total = this.container.createDiv().createDiv({ cls: 'character-builder-total-stats' });
+			total.createEl("span", { text: 'Restant: ' });
+			this.remainingElmt = total.createEl("strong");
+		}
+
+		this.update();
+	}
+	update(): void
+	{
+		/*const stats = Object.keys(StatBlockNames);
+		for(let i = 0; i < stats.length; i++)
+		{
+			const stat = this.metadata.statBlock[stats[i]];
+			if(this.metadata.race.bonus1 === stats[i] || this.metadata.race.bonus2 === stats[i] || this.metadata.race.bonus3 === stats[i])
+				stat.bonus = 3;
+			else if(this.metadata.race.bonus4 === stats[i])
+				stat.bonus = 6;
+			else if(this.metadata.race.malus1 === stats[i])
+				stat.bonus = -6;
+			else
+				stat.bonus = 0;
+
+			if(this.options?.hasNormalRow && this.normalElmts[i])
+				this.normalElmts[i].innerHTML = Math.floor(stat.initial + stat.bonus);
+			if(this.options?.hasHighRow && this.highElmts[i])
+				this.highElmts[i].innerHTML = Math.floor((stat.initial + stat.bonus) / 2);
+			if(this.options?.hasExtremeRow && this.extremeElmts[i])
+				this.extremeElmts[i].innerHTML = Math.floor((stat.initial + stat.bonus) / 5);
+		}
+
+		if(this.options?.showRemaining && this.remainingElmt)
+			this.remainingElmt.innerHTML = this.remaining?.toString();
+
+		this.dropdownGroup?.update();*/
+	}
+	private addItem(substat?: string, value?: number, limit?: number): void //When substat is undefined, it means the add button have been pressed, so the user should select its substat later.
+	{
+		
+	}
+	private removeItem(substat?: string): void //If substat is undefined, it is supposed to remove the blank substat.
+	{
+
 	}
 }

@@ -6,11 +6,15 @@ export interface CharacterBuilderSettings {
 	charactersFolder: string;
 	racesFolder: string;
 	talentsFolder: string;
+
 	characterTemplate: string,
+
 	maxStat: number;
 	maxInitialStat: number;
 	minStat: number;
 	statAmount: number;
+
+	substatAmount: number;
 }
 
 export interface ViewSaveData {
@@ -30,11 +34,15 @@ export const DEFAULT_SETTINGS: SaveData = {
 		charactersFolder: '99. Personnages',
 		racesFolder: '3. Races/Liste des Races',
 		talentsFolder: '2. Classes/2. Talents',
+		
 		characterTemplate: '99. Personnages/99. Template.md',
+
 		maxStat: 60,
 		maxInitialStat: 45,
 		minStat: 15,
 		statAmount: 245,
+
+		substatAmount: 62,
 	}
 };
 
@@ -67,15 +75,19 @@ export class CharacterBuilderSettingTab extends PluginSettingTab {
 		new TextField(containerEl, "Max de point par stat", false).link(this.plugin.savedData.settings, "maxStat").onChange(value => this.dirty = true);
 		new TextField(containerEl, "Min de points par stat", false).link(this.plugin.savedData.settings, "minStat").onChange(value => this.dirty = true);
 		new TextField(containerEl, "Max de point par stat à la création", false).link(this.plugin.savedData.settings, "maxInitialStat").onChange(value => this.dirty = true);
-		new TextField(containerEl, "Points total disponnible à la création", false).link(this.plugin.savedData.settings, "statAmount").onChange(value => this.dirty = true);
+		new TextField(containerEl, "Points total disponible à la création", false).link(this.plugin.savedData.settings, "statAmount").onChange(value => this.dirty = true);
+
+		containerEl.createEl('h2', {text: 'Stats secondaires'});
+
+		new TextField(containerEl, "Points total disponible au niveau 1", false).link(this.plugin.savedData.settings, "substatAmount").onChange(value => this.dirty = true);
 	}
 
 	hide()
 	{
 		if(this.dirty)
 		{
-			this.plugin.saveData();
-			Cache.cache("settings", this.plugin.savedData.settings);
+			this.plugin.savePluginData();
+			this.plugin.settings = Cache.cache("settings", this.plugin.savedData.settings);
 		}
 
 		this.dirty = false;

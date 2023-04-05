@@ -485,11 +485,15 @@ If your plugin does not need CSS, delete this file.
     padding-left: .7em;
 }
 
+.character-builder-talents-title {
+    padding: 0;
+    margin: 0 0 0.5em 0.5em;
+}
+
 .character-builder-talents-container {
     flex: 2 1 auto !important;
     border: 1px solid var(--background-modifier-border) !important;
     display: flex;
-    margin: 0.5em;
     padding: 0.5em;
     gap: 8px;
     align-items: center;

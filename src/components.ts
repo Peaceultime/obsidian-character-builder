@@ -220,7 +220,8 @@ export class TextArea extends VisualComponent {
 export class Slider extends VisualComponent {
 	tooltipElmt: HTMLElement;
 	showTooltip: boolean;
-	constructor(parent: HTMLElement, name: string)
+	dynamicTooltip: boolean;
+	constructor(parent: HTMLElement, name: string, dynamicTooltip: boolean = true)
 	{
 		super(parent, name);
 		this.tooltipElmt = this.compElmt.createSpan({ cls: "character-builder-slider-tooltip" });
@@ -230,18 +231,28 @@ export class Slider extends VisualComponent {
 	range(min: number, max: number, step: number): Slider
 	{
 		this.component.setLimits(min, max, step);
-		this.tooltipElmt.innerHTML = this.component?.getValue();
+		
+		if(this.dynamicTooltip) this.tooltipElmt.innerHTML = this.component?.getValue();
 
 		return this;
 	}
-	tooltip(show: boolean): Slider
+	tooltip(show: boolean | number): Slider
 	{
-		this.showTooltip = show;
-
-		if(show)
-			this.tooltipElmt.classList.remove("tooltip-hidden");
+		if(typeof show === "boolean")
+		{
+			this.showTooltip = show;
+			this.dynamicTooltip = true;
+			if(show)
+				this.tooltipElmt.classList.remove("tooltip-hidden");
+			else
+				this.tooltipElmt.classList.add("tooltip-hidden");
+		}
 		else
-			this.tooltipElmt.classList.add("tooltip-hidden");
+		{
+			this.showTooltip = true;
+			this.dynamicTooltip = false;
+			this.tooltipElmt.innerHTML = show;
+		}
 
 		return this;
 	}
@@ -251,7 +262,7 @@ export class Slider extends VisualComponent {
 			if(this.linkSrc && this.linkedProperty)
 				this.linkSrc[this.linkedProperty] = value;
 			
-			this.tooltipElmt.innerHTML = value;
+			if(this.dynamicTooltip) this.tooltipElmt.innerHTML = value;
 
 			cb(value);
 		});

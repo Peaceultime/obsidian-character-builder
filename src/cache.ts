@@ -42,13 +42,33 @@ export async function initCache(app: App): void {
 	const settings = CharacterBuilderCache.cache("settings");
 	const files = app.vault.getMarkdownFiles().reverse();
 
-	const races = (await Promise.all(files.filter(e => e.path.startsWith(settings.racesFolder + "/")).map(async e => new RaceMetadata(e, await app.vault.read(e), app)))).filter(e => !!e && !!e.content);
+	const races = (await Promise.all(files.filter(e => e.path.startsWith(settings.racesFolder + "/")).map(async e => new RaceMetadata(e, await e.vault.read(e), app)))).filter(e => !!e && !!e.content);
 
 	const groups = races.reduce((p, v) => { if(!p.includes(v.file.parent.name)) p.push(v.file.parent.name); return p; }, []);
 
 	for(let i = 0; i < groups.length; i++)
 		CharacterBuilderCache.cache(`races/${groups[i]}/content`, races.filter(e => e.file.parent.name === groups[i]).reduce((p, v) => { p[v.race.name] = v; return p; }, {}));
 
-	const talents = await Promise.all(files.filter(e => e.path.startsWith(settings.talentsFolder + "/") && !/\d\. /.test(e.basename)).map(async e => new TalentMetadata(e, await app.vault.read(e), app)));
-	CharacterBuilderCache.cache("talents", talents.filter(e => e.valid).reduce((p, v) => { p[v.talent.name] = v; return p; }, {}));
+	const talents = await handle(app.vault.getAbstractFileByPath(settings.talentsFolder));
+	console.log(CharacterBuilderCache.cache("talents", talents));
+}
+
+async function handle(file)
+{
+	if(file.children)
+	{
+		const waiting = (await Promise.all(file.children.map(async e => [e.basename || e.name, await handle(e)]))).filter(e => e[1] !== undefined);
+		if(waiting.length === 0)
+			return undefined;
+
+		return Object.fromEntries(waiting);
+	}
+	else
+	{
+		if(/\d\. /.test(file.basename))
+			return undefined;
+		
+		const talent = new TalentMetadata(file, await file.vault.read(file), app);
+		return talent.valid ? talent : undefined;
+	}
 }
