@@ -50,10 +50,11 @@ export async function initCache(app: App): void {
 		CharacterBuilderCache.cache(`races/${groups[i]}/content`, races.filter(e => e.file.parent.name === groups[i]).reduce((p, v) => { p[v.race.name] = v; return p; }, {}));
 
 	const talents = await handle(app.vault.getAbstractFileByPath(settings.talentsFolder));
-	console.log(CharacterBuilderCache.cache("talents", talents));
+	CharacterBuilderCache.cache("talents/tree", talents);
+	CharacterBuilderCache.cache("talents/registry", flatten(talents).reduce((p, v) => { p[v.talent.name] = v; return p; }, {}));
 }
 
-async function handle(file)
+async function handle(file: TFile): any
 {
 	if(file.children)
 	{
@@ -71,4 +72,8 @@ async function handle(file)
 		const talent = new TalentMetadata(file, await file.vault.read(file), app);
 		return talent.valid ? talent : undefined;
 	}
+}
+function flatten(e: any): TalentMetadata[]
+{
+	return Object.values(e).flatMap(e => e instanceof TalentMetadata ? e : flatten(e));
 }

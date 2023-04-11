@@ -1,8 +1,8 @@
-import { Setting, MarkdownPreviewView, Modal, App, ButtonComponent } from 'obsidian';
+import { Setting, MarkdownPreviewView, Modal, App, ButtonComponent, Menu } from 'obsidian';
 import { Dropdown, TextField, TextArea, Slider } from 'src/components.ts';
 import { Tab, TabContainer } from 'src/tab.ts';
 import { Substats, Stat, StatBlock, StatBlockNames, Metadata, TalentMetadata, Talent } from 'src/metadata.ts';
-import { HTMLStatElement } from 'src/htmlelements.ts';
+import { HTMLStatElement, StatBlockElement, SubstatPicker } from 'src/htmlelements.ts';
 import { CharacterBuilderCache as Cache } from 'src/cache.ts';
 
 export class LevelTab extends Tab
@@ -11,10 +11,14 @@ export class LevelTab extends Tab
 	levels: Level[];
 
 	talentPicker: TalentPicker;
-	talentList: TalentList;
 
+	talentLists: TalentList[];
+
+	statblocks: StatBlockElement[];
 	hps: Slider[];
 	focuses: Slider[];
+
+	freeMode: boolean;
 	render(): void
 	{
 		const metadata = this.metadata = this.request("metadata");
@@ -22,23 +26,35 @@ export class LevelTab extends Tab
 		this.content.empty();
 		this.requiredList = [];
 
+		this.freeMode = false;
+
 		this.talents = [];
+		this.talentLists = [];
+		this.statblocks = [];
 		this.hps = [];
 		this.focuses = [];
 
-		new Setting(this.content).addButton(btn => btn.setIcon("lucide-plus-circle").onClick(() => {
-			const level = {
-				level: this.levels.reduce((p, v) => Math.max(p, v.level), 0) + 1,
-				talents: [],
-				buffedStat: undefined,
-				buffedSubstats: {},
-				hp: 13,
-				focus: 0,
-				flavoring: undefined,
-			};
-			metadata.levels.push(level);
-			this.renderLevel(level);
-		}));
+		this.levels = metadata.levels;
+
+		this.content.createDiv("character-builder-splitter-container", split => {
+			const levelUpBtn = new Setting(split).setName(`Ajouter le niveau ${this.levels.reduce((p, v) => Math.max(p, v.level), 0) + 1}`).addButton(btn => btn.setIcon("lucide-plus-circle").onClick((e) => {
+				console.log(e);
+				const level = {
+					level: this.levels.reduce((p, v) => Math.max(p, v.level), 0) + 1,
+					talents: [],
+					buffedStat: undefined,
+					buffedSubstats: {},
+					hp: 13,
+					focus: 0,
+					flavoring: undefined,
+				};
+				metadata.levels.push(level);
+				this.renderLevel(level);
+				levelUpBtn.setName(`Ajouter le niveau ${this.levels.reduce((p, v) => Math.max(p, v.level), 0) + 1}`);
+			}));
+
+			new Setting(split).setName(`Désactiver les restrictions`).addToggle(tgl => tgl.onChange(e => this.freeMode = e));
+		});
 
 		if(metadata.levels.length === 0)
 		{
@@ -52,7 +68,6 @@ export class LevelTab extends Tab
 				flavoring: undefined,
 			});
 		}
-		this.levels = metadata.levels;
 		this.talentPicker = new TalentPicker(this.container.app);
 
 		for(let i = 0; i < this.levels.length; i++)
@@ -77,25 +92,100 @@ export class LevelTab extends Tab
 				this.focuses.push(focus);
 
 				if(level.level % 2 === 0)
-					new Dropdown(div, "+3 sur une stat", false).source(StatBlockNames).link(level, "buffedStat").desc("Tous les niveaux pairs, vous obtenez un bonus de +3 sur une stat principale, dans la limite de 60 points au total.");
+				{
+					this.statblocks.push(new StatBlockElement(div, this.metadata, {
+						hasEvenLevelPicker: level.level,
+						hasNormalRow: true,
+						maxStat: Cache.cache("settings").maxStat,
+					}).onChange(() => this.update()));
+				}
 			})
 		
-			const talentList = new TalentList(split, level.talents);
-			talentList.onRemove((talent: Talent) => {
-				this.talents.splice(this.talents.findIndex(e => TalentMetadata.compare(e, talent)), 1);
-				level.talents.splice(level.talents.findIndex(e => TalentMetadata.compare(e, talent)), 1);
-			}).onAddButton(() => this.pickTalent(talentList, level));
+			split.createDiv(undefined, div => {
+				const talentList = new TalentList(div, level.talents);
+				this.talentLists.push(talentList);
+				talentList.onRemove((talent: Talent) => {
+					this.removeDependencies(talent, level);
+				}).onAddButton(() => this.pickTalent(talentList, level));
+				new SubstatPicker(div, this.metadata, {
+					statAmount: 22,
+
+					hasNormal: true,
+					hasStatPicker: true,
+					hasValuePicker: true,
+
+					showRemaining: true,
+
+					level: level.level,
+				});
+			});
+		}, e => {
+			new Menu(this.app).addItem((item) =>
+				item
+					.setTitle("Supprimer")
+					.setIcon("lucide-trash-2")
+					.onClick(() => {
+						this.removeLevel(level);
+					})
+			).showAtMouseEvent(e);
 		});
 
-		this.updateSliderTooltips();
+		this.update();
+	}
+	removeLevel(level: Level)
+	{
+		/*new Promise();
+		talents: Talent[];
+		levels: Level[];
+
+		talentLists: TalentList[];
+
+		statblocks: StatBlockElement[];
+		hps: Slider[];
+		focuses: Slider[];*/
+		new Notice("Deleting");
+	}
+	removeDependencies(talent: Talent, level: Level)
+	{
+		level.talents.splice(level.talents.findIndex(e => TalentMetadata.compare(e, talent)), 1);
+
+		if(this.freeMode)
+		{
+			this.talents.splice(this.talents.findIndex(e => TalentMetadata.compare(e, talent)), 1);
+			return;
+		}
+
+		const currentTalents = [];
+		let count = 0;
+		for(let i = 0; i < this.metadata.levels.length; i++)
+		{
+			const currentLevel = this.metadata.levels[i];
+			for(let j = 0; j < currentLevel.talents.length; j++)
+			{
+				const tal = currentLevel.talents[j];
+				if(!TalentPicker.available(Cache.cache(`talents/registry/${tal.name}`), currentTalents, currentLevel))
+				{
+					currentLevel.talents.splice(j, 1);
+					this.talentLists[i].remove(tal, true);
+					count++;
+				}
+				else
+					currentTalents.push(tal);
+			}
+		}
+
+		if(count > 0)
+			new Notice(`${count} talents dépendant de ${talent.name} ont été supprimés.`);
+
+		this.talents = currentTalents;
 	}
 	pickTalent(talentList: TalentList, level: Level)
 	{
 		const metadata = this.request("metadata");
 
-		if(level.level === 1 && level.talents.length >= (6 - metadata.armor / 2))
+		if(!this.freeMode && level.level === 1 && level.talents.length >= (6 - metadata.armor / 2))
 			return new Notice("Vous avez déjà choisi tous vos talents pour ce niveau");
-		else if(level.level > 1 && level.talents.length >= 1)
+		else if(!this.freeMode && level.level > 1 && level.talents.length >= 1)
 			return new Notice("Vous avez déjà choisi tous vos talents pour ce niveau");
 
 		this.talentPicker.pick(this.talents, level.level).then(talent => {
@@ -103,6 +193,18 @@ export class LevelTab extends Tab
 			level.talents.push(talent);
 			talentList.add(talent);
 		}).catch(err => err && console.error(err));
+	}
+	update()
+	{
+		this.updateSliderTooltips();
+
+		for(let i = 0; i < this.statblocks.length; i++)
+		{
+			this.statblocks[i].options.maxStat = this.freeMode ? 1000 : Cache.cache("settings").maxStat;
+			this.statblocks[i].update();
+		}
+
+		this.updateSubstats();
 	}
 	updateSliderTooltips()
 	{
@@ -115,6 +217,10 @@ export class LevelTab extends Tab
 			focus += this.focuses[i].component.getValue();
 			this.focuses[i].tooltip(focus);
 		}
+	}
+	updateSubstats()
+	{
+
 	}
 }
 
@@ -151,8 +257,8 @@ class TalentList
 		this.addCb = cb;
 
 		return this;
-	} 
-	remove(talent: string): void
+	}
+	remove(talent: Talent, silent: boolean = false): void
 	{
 		if(TalentMetadata.includes(this.talents, talent))
 		{
@@ -163,7 +269,7 @@ class TalentList
 			this.talents.splice(idx, 1);
 			this.talentsEl.splice(idx, 1);
 
-			this.removeCb && this.removeCb(talent);
+			!silent && this.removeCb && this.removeCb(talent);
 		}
 	}
 	onRemove(cb: (talent: Talent) => void): TalentList
@@ -193,7 +299,7 @@ class TalentPicker extends Modal
 	constructor(app: App)
 	{
 		super(app);
-		this.talents = Cache.cache("talents");
+		this.talents = Cache.cache("talents/tree");
 
 		let { contentEl, modalEl } = this;
 		modalEl.classList.add("character-builder-talent-modal");
@@ -220,41 +326,6 @@ class TalentPicker extends Modal
 
 			for(const [title, content] of Object.entries(this.talents))
 				this.addGroup(title, content, this.listElmt, picked, level);
-
-			/*const pickableTalents = [];
-			for(let i = 0; i < this.talents.length; i++)
-			{
-				const talent = this.talents[i];
-				if(this.available(talent, picked, level))
-				{
-					pickableTalents.push(talent);
-				}
-			}*/
-
-			/*const groups = pickableTalents.reduce((p, v) => {
-				const parent = v.file.parent.name;
-				if(!p.hasOwnProperty(parent))
-					p[parent] = [];
-				p[parent].push(v);
-				return p;
-			}, {});*/
-
-			/*for(const [key, value] of Object.entries(groups))
-			{
-				this.listElmt.createDiv("character-builder-talent-group-container", container =>  {
-					let header;
-					if(!key.includes("Talent de base"))
-					{
-						header = container.createDiv("character-builder-talent-group-header", header => {
-							header.createSpan({ cls: "character-builder-talent-group-title", text: key });
-							header.addEventListener("click", () => container.classList.toggle("collapsed"));
-						});
-					}
-					container.createDiv("character-builder-talent-group-content", div => {
-						value.forEach(e => div.createDiv("character-builder-talent-item", item => { item.addEventListener("click", () => this.display(e)); }).createSpan({ cls: "character-builder-talent-item-title", text: TalentMetadata.text(e.talent) }));
-					});
-				});
-			}*/
 		});
 	}
 
@@ -272,7 +343,7 @@ class TalentPicker extends Modal
 		{
 			if(childContent instanceof TalentMetadata)
 			{
-				if(this.available(childContent, picked, level))
+				if(TalentPicker.available(childContent, picked, level))
 				{
 					this.addTalent(childTitle, childContent, div);
 					count++;
@@ -301,7 +372,7 @@ class TalentPicker extends Modal
 		}).createSpan({ cls: "character-builder-talent-item-title", text: title });
 	}
 
-	available(talent: TalentMetadata, picked: Talent[], level: number): boolean
+	static available(talent: TalentMetadata, picked: Talent[], level: number): boolean
 	{
 		if(talent.level && talent.level > level)
 			return false;
@@ -397,7 +468,7 @@ class TalentPicker extends Modal
 	}
 }
 
-function group(elmt: HTMLElement, title: string, collapsed: boolean = false): HTMLDivElement
+function group(elmt: HTMLElement, title: string, collapsed: boolean = false, onContextMenu?: (e) => void): HTMLDivElement
 {
 	return elmt.createDiv("character-builder-group-container", container => {
 		container.createDiv("character-builder-group-collapsible", div => {
@@ -405,6 +476,7 @@ function group(elmt: HTMLElement, title: string, collapsed: boolean = false): HT
 			div.addEventListener("click", e => {
 				container.classList.toggle("collapsed");
 			});
+			onContextMenu && div.addEventListener("contextmenu", onContextMenu);
 		});
 	
 		if(collapsed)

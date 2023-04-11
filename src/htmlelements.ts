@@ -1,4 +1,4 @@
-import { DropdownComponent } from 'obsidian';
+import { DropdownComponent, ToggleComponent, ButtonComponent } from 'obsidian';
 import { CharacterBuilderCache as Cache } from 'src/cache.ts';
 import { Stat, StatBlock, StatBlockNames } from 'src/metadata.ts';
 import { Dropdown } from 'src/components.ts';
@@ -87,6 +87,7 @@ export interface StatBlockOptions
 	hasExtremeRow?: boolean;
 	hasValuePicker?: boolean;
 	hasRacialValuePicker?: boolean;
+	hasEvenLevelPicker?: number;
 
 	showRemaining?: boolean;
 
@@ -105,6 +106,7 @@ export class StatBlockElement
 	normalElmts: HTMLELement[] = [];
 	highElmts: HTMLELement[] = [];
 	extremeElmts: HTMLELement[] = [];
+	evenLevelPickerElmts: ToggleComponent[] = [];
 
 	remaining: number;
 	remainingElmt: HTMLElement;
@@ -114,6 +116,7 @@ export class StatBlockElement
 
 	bufferElmt: HTMLElement;
 
+	cb: () => void;
 	constructor(parent: HTMLElement, metadata: Metadata, options: StatBlockOptions)
 	{
 		const settings = Cache.cache("settings");
@@ -155,12 +158,19 @@ export class StatBlockElement
 
 					stat.initial = newVal;
 					this.update();
+					this.cb && this.cb();
 
 					return newVal;
 				}).value(stat.initial || settings.minStat));
 			}
 			if(options?.hasRacialValuePicker)
 				this.racePickerElmts.push(this.dropdownGroup.add(new DropdownComponent(this.bufferElmt)));
+			if(options?.hasEvenLevelPicker)
+				this.evenLevelPickerElmts.push((new ToggleComponent(this.bufferElmt)).setValue(this.metadata.levels.find(e => e.level === options?.hasEvenLevelPicker).buffedStat === stats[i]).onChange(e => {
+					this.metadata.levels.find(e => e.level === options?.hasEvenLevelPicker).buffedStat = (e ? stats[i] : ""); 
+					this.update(); 
+					this.cb && this.cb();
+				}));
 			if(options?.hasNormalRow)
 				this.normalElmts.push(this.bufferElmt.createEl("i"));
 			if(options?.hasHighRow)
@@ -173,6 +183,8 @@ export class StatBlockElement
 			this.row("Statistique", this.pickerElmts.map(e => e.component));
 		if(options?.hasRacialValuePicker)
 			this.row("Bonus raciaux", this.racePickerElmts.map(e => e.selectEl));
+		if(options?.hasEvenLevelPicker)
+			this.row("Bonus de niveau", this.evenLevelPickerElmts.map(e => e.toggleEl));
 		if(options?.hasNormalRow)
 			this.row("Réussite normale", this.normalElmts);
 		if(options?.hasHighRow)
@@ -195,6 +207,12 @@ export class StatBlockElement
 
 		this.update();
 	}
+	onChange(cb: () => void): StatBlockElement
+	{
+		this.cb = cb;
+
+		return this;
+	}
 	update(): void
 	{
 		const stats = Object.keys(StatBlockNames);
@@ -210,12 +228,27 @@ export class StatBlockElement
 			else
 				stat.bonus = 0;
 
+			let levelBonus = 0;
+			if(this.options?.hasEvenLevelPicker)
+			{
+				for(let j = 2; j <= this.options?.hasEvenLevelPicker; j += 2)
+					levelBonus += this.metadata.levels.find(e => e.level === j).buffedStat === stats[i] ? 3 : 0;
+
+				const buffedStat = this.metadata.levels.find(e => e.level === this.options?.hasEvenLevelPicker).buffedStat;
+				if(this.options?.maxStat && stat.initial + stat.bonus + levelBonus >= this.options?.maxStat && buffedStat !== stats[i])
+					this.evenLevelPickerElmts[i]?.setDisabled(true);
+				else if(buffedStat === "")
+					this.evenLevelPickerElmts[i]?.setDisabled(false);
+				else
+					this.evenLevelPickerElmts[i]?.setDisabled(buffedStat !== stats[i]);
+			}
+
 			if(this.options?.hasNormalRow && this.normalElmts[i])
-				this.normalElmts[i].innerHTML = Math.floor(stat.initial + stat.bonus);
+				this.normalElmts[i].innerHTML = Math.floor(stat.initial + stat.bonus + levelBonus);
 			if(this.options?.hasHighRow && this.highElmts[i])
-				this.highElmts[i].innerHTML = Math.floor((stat.initial + stat.bonus) / 2);
+				this.highElmts[i].innerHTML = Math.floor((stat.initial + stat.bonus + levelBonus) / 2);
 			if(this.options?.hasExtremeRow && this.extremeElmts[i])
-				this.extremeElmts[i].innerHTML = Math.floor((stat.initial + stat.bonus) / 5);
+				this.extremeElmts[i].innerHTML = Math.floor((stat.initial + stat.bonus + levelBonus) / 5);
 		}
 
 		if(this.options?.showRemaining && this.remainingElmt)
@@ -345,6 +378,7 @@ class RacialDropdownGroup
 			}
 
 			this.statBlock.update();
+			this.statBlock.cb && this.statBlock.cb();
 		});
 
 		this.update();
@@ -404,7 +438,12 @@ export class SubstatPicker
 {
 	container: HTMLElement;
 
-	substatsElmts: HTMLELement[] = [];
+	substats: string[];
+	statElmts: Dropdown[] = [];
+	valueElmts: HTMLStatELement[] = [];
+	normalElmts: HTMLELement[] = [];
+	highElmts: HTMLELement[] = [];
+	extremeElmts: HTMLELement[] = [];
 
 	remaining: number;
 	remainingElmt: HTMLElement;
@@ -418,6 +457,20 @@ export class SubstatPicker
 
 		this.container = parent.createDiv("character-builder-substats-container");
 
+		if(options?.hasStatPicker || options?.showRemaining)
+			this.container.createDiv(undefined, div => {
+				if(options?.hasStatPicker)
+					new ButtonComponent(this.container).setIcon("lucide-plus").onClick(() => this.addItem()).setClass("character-builder-substats-add-button");
+
+				if(options?.showRemaining)
+				{
+					const total = div.createDiv({ cls: 'character-builder-total-stats' });
+					total.createEl("span", { text: 'Restant: ' });
+					this.remainingElmt = total.createEl("strong");
+				}
+			})
+		this.content = this.container.createDiv("character-builder-substats-content");
+
 		this.metadata = metadata;
 		this.options = options;
 		this.remaining = options.statAmount ?? settings.substatAmount;
@@ -426,13 +479,6 @@ export class SubstatPicker
 		for(let i = 0; i < substats.length; i++)
 		{
 			this.addStat(substats[i], this.metadata.substats[substats[i]]);
-		}
-
-		if(options?.showRemaining)
-		{
-			const total = this.container.createDiv().createDiv({ cls: 'character-builder-total-stats' });
-			total.createEl("span", { text: 'Restant: ' });
-			this.remainingElmt = total.createEl("strong");
 		}
 
 		this.update();
