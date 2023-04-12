@@ -1,7 +1,7 @@
 import { DropdownComponent, ToggleComponent, ButtonComponent } from 'obsidian';
 import { CharacterBuilderCache as Cache } from 'src/cache.ts';
 import { Stat, StatBlock, StatBlockNames } from 'src/metadata.ts';
-import { Dropdown } from 'src/components.ts';
+import { Dropdown, SearchField } from 'src/components.ts';
 import Substats from 'src/substats.js';
 
 export class HTMLStatElement {
@@ -455,21 +455,23 @@ export class SubstatPicker
 	{
 		const settings = Cache.cache("settings");
 
-		this.container = parent.createDiv("character-builder-substats-container");
+		this.container = parent.createDiv();
+		this.container.createEl("h5", { cls: "character-builder-talents-title", text: "Stats secondaires" });
+		this.container.createDiv("character-builder-substats-container", div => {
+			if(options?.hasStatPicker || options?.showRemaining)
+				div.createDiv(undefined, div2 => {
+					if(options?.hasStatPicker)
+						new ButtonComponent(div2).setIcon("lucide-plus").onClick(() => this.addItem()).setClass("character-builder-substats-add-button");
 
-		if(options?.hasStatPicker || options?.showRemaining)
-			this.container.createDiv(undefined, div => {
-				if(options?.hasStatPicker)
-					new ButtonComponent(this.container).setIcon("lucide-plus").onClick(() => this.addItem()).setClass("character-builder-substats-add-button");
-
-				if(options?.showRemaining)
-				{
-					const total = div.createDiv({ cls: 'character-builder-total-stats' });
-					total.createEl("span", { text: 'Restant: ' });
-					this.remainingElmt = total.createEl("strong");
-				}
-			})
-		this.content = this.container.createDiv("character-builder-substats-content");
+					if(options?.showRemaining)
+					{
+						const total = div2.createDiv({ cls: 'character-builder-total-stats' });
+						total.createEl("span", { text: 'Restant: ' });
+						this.remainingElmt = total.createEl("strong");
+					}
+				});
+			this.content = div.createDiv("character-builder-substats-content");
+		});
 
 		this.metadata = metadata;
 		this.options = options;
@@ -513,7 +515,25 @@ export class SubstatPicker
 	}
 	private addItem(substat?: string, value?: number, limit?: number): void //When substat is undefined, it means the add button have been pressed, so the user should select its substat later.
 	{
-		
+		const container = this.content.createDiv("character-builder-substat-container");
+
+		if(this.options?.hasStatPicker)
+		{
+			container.createSpan("character-builder-substat-remove").addEventListener("click", () => this.remove(talent));
+			new SearchField(container, "Stat").onSuggest(value => Substats.map(e => e.name).filter(e => e.includes(value))).onSelect(console.log);
+			//container.createSpan("character-builder-substat-remove").addEventListener("click", () => this.remove(talent));
+		}
+		if(this.options?.hasValuePicker)
+
+		if(this.options?.hasNormal)
+
+		if(this.options?.hasHigh)
+
+		if(this.options?.hasExtreme)
+
+		container.createDiv("character-builder-substat-container");
+		container.createDiv("character-builder-substat-container");
+		container.createDiv("character-builder-substat-container");
 	}
 	private removeItem(substat?: string): void //If substat is undefined, it is supposed to remove the blank substat.
 	{

@@ -1,4 +1,4 @@
-import { TextComponent, TextAreaComponent, DropdownComponent, SliderComponent, ValueComponent, MarkdownPreviewView } from 'obsidian';
+import { TextComponent, TextAreaComponent, DropdownComponent, SliderComponent, ValueComponent, MarkdownPreviewView, PopoverSuggest } from 'obsidian';
 
 import { CharacterBuilderCache as Cache, reach } from 'src/cache.ts';
 
@@ -324,5 +324,83 @@ export class MarkdownArea extends VisualComponent {
 		}
 
 		return this;
+	}
+}
+
+export class SearchField extends TextField {
+	popover: PopoverSuggest;
+
+	suggestCb: (value: string) => void;
+	selectCb: (value: string) => void;
+	constructor(parent: HTMLElement, name: string)
+	{
+		super(parent, name);
+		this.popover = new PopoverSuggest(app);
+		this.popover.selectSuggestion = this.selectSuggestion.bind(this);
+		this.popover.renderSuggestion = this.renderSuggestion.bind(this);
+
+		this.component.inputEl.addEventListener("input", () => this.onInputChange());
+		this.component.inputEl.addEventListener("focus", () => this.onInputChange());
+		this.component.inputEl.addEventListener("blur", () => this.popover.close());
+	}
+
+	private onInputChange()
+	{
+		const suggests = this.suggestCb && this.suggestCb(this.component?.getValue());
+		if(suggests.length > 0)
+		{
+			this.popover.suggestions.setSuggestions(suggests);
+			this.popover.open();
+			this.popover.setAutoDestroy(this.component.inputEl);
+			this.popover.reposition(getPos(this.component.inputEl));
+		}
+		else
+			this.popover.close();
+	}
+	private selectSuggestion(value: string): void
+	{
+		this.value(value);
+		this.popover.close();
+
+		this.selectCb && this.selectCb(value);
+	}
+	private renderSuggestion(value: string, elmt: HTMLElement): void
+	{
+		elmt.createSpan({text: value});
+		elmt.addEventListener("click", () => this.selectSuggestion(value));
+	}
+	onSuggest(cb: (value: string) => string[]): SearchField
+	{
+		this.suggestCb = cb;
+
+		return this;
+	}
+	onSelect(cb: (value: string) => void): SearchField
+	{
+		this.selectCb = cb;
+
+		return this;
+	}
+}
+
+function getPos(e: HTMLElement)
+{
+	for (var n = 0, i = 0, r = null; e && e !== r;)
+	{
+		n += e.offsetTop,
+		i += e.offsetLeft;
+		for (var o = e.offsetParent, a = e.parentElement; a && a !== o; )
+			n -= a.scrollTop,
+			i -= a.scrollLeft,
+			a = a.parentElement;
+		o && o !== r && (n -= o.scrollTop,
+		i -= o.scrollLeft),
+		e = o
+	}
+	return {
+		left: i,
+		right: i + e,
+		top: n,
+		bottom: n + e
 	}
 }
