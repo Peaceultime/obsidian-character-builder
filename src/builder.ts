@@ -1,5 +1,6 @@
 import { CharacterBuilderCache as Cache } from 'src/cache.ts';
 import { Substats, Stat, StatBlock, StatBlockNames, Metadata, TalentMetadata } from 'src/metadata.ts';
+import SubstatsList from 'src/substats.js';
 
 export function print(data: any, template: string): string
 {
@@ -7,7 +8,7 @@ export function print(data: any, template: string): string
 	let currentStatBlock = JSON.parse(JSON.stringify(data.statBlock));
 	let currentSubstats = JSON.parse(JSON.stringify(data.substats));
 	return template.replaceAll("{statblock}", statblock(currentStatBlock))
-					.replaceAll("{substatblock}", substats(currentSubstats))
+					.replaceAll("{substatblock}", substats(data.levels.find(e => e.level === 1).buffedSubstats, currentStatBlock))
 					.replaceAll("{armor}", data.armor)
 					.replaceAll("{luck}", data.luck)
 					.replaceAll("{race-name}", `${data.race.name}`)
@@ -43,7 +44,7 @@ export function print(data: any, template: string): string
 									.replaceAll("{level-focus}", `${sumValues.focus} (+${level.focus})`)
 									.replaceAll("{level-talents}", level.talents.map(e => `${TalentMetadata.embed(e)}`).join("\n\n"))
 									.replaceAll("{level-statblock}", statblock(sumValues.statBlock))
-									.replaceAll("{level-substatblock}", substats(sumValues.substats))
+									.replaceAll("{level-substatblock}", substats(sumValues.substats, sumValues.statBlock))
 									.replaceAll("{level-flavoring}", level.flavoring)
 									.replaceAll("{focus-name}", "Focus");
 						}
@@ -78,7 +79,7 @@ function table(header: string[], content: string[][]): string
 }
 function stat(value: Stat, divider: number = 1): string
 {
-	return Math.floor((value.initial + value.bonus) / divider);
+	return Math.floor(((value.initial + value.bonus) || value) / divider);
 }
 function statblock(value: StatBlock): string
 {
@@ -104,11 +105,14 @@ function list(value: any[]): string
 		content += `- ${value[i]}\n`;
 	return content;
 }
-function substats(value: Substats): string
+function substats(value: Substats, statBlock: StatBlock): string
 {
 	let content = "";
 	const names = Object.keys(value);
 	for(let i = 0; i < names.length; i++)
-		content += `- **${names[i]}**: ${stat(value[names[i]], 1)} (*${stat(value[names[i]], 2)}*, *${stat(value[names[i]], 5)}*)\n`;
+	{
+		const s = SubstatsList.find(e => e.name === names[i]).stat;
+		content += `- **${names[i]}**: +${stat(value[names[i]], 1)} (${stat(value[names[i]] + statBlock[s].initial + statBlock[s].bonus, 1)}, *${stat(value[names[i]] + statBlock[s].initial + statBlock[s].bonus, 2)}*, *${stat(value[names[i]] + statBlock[s].initial + statBlock[s].bonus, 5)}*)\n`;
+	}
 	return content;
 }

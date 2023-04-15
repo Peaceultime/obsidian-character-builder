@@ -129,7 +129,8 @@ If your plugin does not need CSS, delete this file.
     max-width: 90px;
 }
 .character-builder-total-stats {
-    display: inline;
+    display: flex;
+    align-items: center;
 }
 
 .character-builder-setting {
@@ -490,7 +491,7 @@ If your plugin does not need CSS, delete this file.
     margin: 0 0 0.5em 0.5em;
 }
 
-.character-builder-talents-container {
+.character-builder-talents-container, .character-builder-substats-container {
     flex: 2 1 auto !important;
     border: 1px solid var(--background-modifier-border) !important;
     display: flex;
@@ -499,13 +500,13 @@ If your plugin does not need CSS, delete this file.
     align-items: center;
 }
 
-.character-builder-talents-content {
+.character-builder-talents-content, .character-builder-substats-content {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
 }
 
-.character-builder-talent {
+.character-builder-talent, .character-builder-substat-name {
     padding-left: .75em;
     border: 1px solid var(--background-modifier-border);
     background-color: var(--background-modifier-border);
@@ -514,7 +515,7 @@ If your plugin does not need CSS, delete this file.
     align-items: center;
 }
 
-span.character-builder-talent-remove {
+span.character-builder-talent-remove, span.character-builder-substat-remove {
     width: 24px;
     height: 24px;
     display: block;
@@ -526,19 +527,19 @@ span.character-builder-talent-remove {
     align-items: center;
 }
 
-.character-builder-talent-remove:hover {
+.character-builder-talent-remove:hover, .character-builder-substat-remove:hover {
     background-color: var(--background-modifier-border-focus);
 }
 
-.character-builder-talent:hover {
+.character-builder-talent:hover, .character-builder-substat-name:hover {
     border-color: var(--background-modifier-border-focus);
 }
 
-span.character-builder-talent-remove:after {
+span.character-builder-talent-remove:after, span.character-builder-substat-remove:after {
     content: "✕";
 }
 
-.character-builder-talents-container button {
+.character-builder-talents-container button, .character-builder-substats-container button {
     height: 24px;
     width: 24px;
     padding: 0;
@@ -564,4 +565,31 @@ span.character-builder-talent-remove:after {
 
 .checkbox-container.is-disabled:after {
     background-color: var(--background-modifier-border-hover);
+}
+
+.character-builder-substats-container {
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.character-builder-substats-container > div:first-child {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.character-builder-substats-add-button {
+    margin: 2px;
+}
+
+.character-builder-substats-content {
+    flex-direction: column;
+}
+
+.character-builder-substat-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }

@@ -1,7 +1,7 @@
-import { DropdownComponent, ToggleComponent, ButtonComponent } from 'obsidian';
+import { DropdownComponent, ToggleComponent, ButtonComponent, TextComponent, PopoverSuggest } from 'obsidian';
 import { CharacterBuilderCache as Cache } from 'src/cache.ts';
 import { Stat, StatBlock, StatBlockNames } from 'src/metadata.ts';
-import { Dropdown, SearchField } from 'src/components.ts';
+import { Dropdown } from 'src/components.ts';
 import Substats from 'src/substats.js';
 
 export class HTMLStatElement {
@@ -18,6 +18,12 @@ export class HTMLStatElement {
 		this.max = max;
 		this.component = parent.createEl("input", { type: "number", cls: "character-builder-stat-input", attr: { min: min, max: max, step: step } });
 		this.component.addEventListener("change", this._onChange.bind(this));
+	}
+	limit(min?: number, max?: number, step: number = 1)
+	{
+		this.min = min;
+		this.max = max;
+		//this.component.attributes
 	}
 	value(value: number): HTMLStatElement
 	{
@@ -432,14 +438,14 @@ export interface SubstatsOptions
 
 	showRemaining?: boolean;
 
-	level?: number;
+	level: number;
 }
 export class SubstatPicker
 {
 	container: HTMLElement;
 
 	substats: string[];
-	statElmts: Dropdown[] = [];
+	statElmts: HTMLElement[] = [];
 	valueElmts: HTMLStatELement[] = [];
 	normalElmts: HTMLELement[] = [];
 	highElmts: HTMLELement[] = [];
@@ -449,7 +455,10 @@ export class SubstatPicker
 	remainingElmt: HTMLElement;
 
 	metadata: Metadata;
+	levelSubstats: Substats;
 	options: SubstatsOptions;
+
+	cb: () => void;
 
 	constructor(parent: HTMLElement, metadata: Metadata, options: SubstatsOptions)
 	{
@@ -461,7 +470,10 @@ export class SubstatPicker
 			if(options?.hasStatPicker || options?.showRemaining)
 				div.createDiv(undefined, div2 => {
 					if(options?.hasStatPicker)
-						new ButtonComponent(div2).setIcon("lucide-plus").onClick(() => this.addItem()).setClass("character-builder-substats-add-button");
+					{
+						const suggest = new SuggestComponent(div2).onSuggest(value => Substats.map(e => e.name).filter(e => e.toLowerCase().includes(value.toLowerCase()) && !this.substats.includes(e)));
+						suggest.onSelect((v) => { this.addItem(v); suggest.setValue(""); });
+					}
 
 					if(options?.showRemaining)
 					{
@@ -475,68 +487,242 @@ export class SubstatPicker
 
 		this.metadata = metadata;
 		this.options = options;
+		this.substats = [];
 		this.remaining = options.statAmount ?? settings.substatAmount;
 
-		const substats = Object.keys(this.metadata.substats);
+		this.levelSubstats = this.metadata.levels.find(e => e.level === this.options.level)?.buffedSubstats;
+		const substats = Object.keys(this.levelSubstats);
 		for(let i = 0; i < substats.length; i++)
-		{
-			this.addStat(substats[i], this.metadata.substats[substats[i]]);
-		}
+			this.addItem(substats[i], this.levelSubstats[substats[i]]);
 
 		this.update();
 	}
+	onChange(cb: () => void): SubstatPicker
+	{
+		this.cb = cb;
+
+		return this;
+	}
 	update(): void
 	{
-		/*const stats = Object.keys(StatBlockNames);
-		for(let i = 0; i < stats.length; i++)
+		for(let i = 0; i < this.substats.length; i++)
 		{
-			const stat = this.metadata.statBlock[stats[i]];
-			if(this.metadata.race.bonus1 === stats[i] || this.metadata.race.bonus2 === stats[i] || this.metadata.race.bonus3 === stats[i])
-				stat.bonus = 3;
-			else if(this.metadata.race.bonus4 === stats[i])
-				stat.bonus = 6;
-			else if(this.metadata.race.malus1 === stats[i])
-				stat.bonus = -6;
-			else
-				stat.bonus = 0;
+			const substat = this.substats[i];
+			const stat = Substats.find(e => e.name === substat).stat;
 
-			if(this.options?.hasNormalRow && this.normalElmts[i])
-				this.normalElmts[i].innerHTML = Math.floor(stat.initial + stat.bonus);
-			if(this.options?.hasHighRow && this.highElmts[i])
-				this.highElmts[i].innerHTML = Math.floor((stat.initial + stat.bonus) / 2);
-			if(this.options?.hasExtremeRow && this.extremeElmts[i])
-				this.extremeElmts[i].innerHTML = Math.floor((stat.initial + stat.bonus) / 5);
+			let statValue = this.metadata.statBlock[stat].initial + this.metadata.statBlock[stat].bonus, substatValue = 0;
+			for(let j = 1; j <= this.options?.level; j++)
+			{
+				statValue += this.metadata.levels.find(e => e.level === j)?.buffedStat === stat ? 3 : 0;
+				substatValue += this.metadata.levels.find(e => e.level === j)?.buffedSubstats[substat] || 0;
+			}
+
+			if(this.options?.hasValuePicker && substatValue - this.levelSubstats[substat] >= this.options.level * 2)
+			{
+				this.valueElmts.limit()
+			}
+
+			if(this.options?.hasNormal && this.normalElmts[i])
+				this.normalElmts[i].innerHTML = Math.floor(statValue + substatValue);
+			if(this.options?.hasHigh && this.highElmts[i])
+				this.highElmts[i].innerHTML = Math.floor((statValue + substatValue) / 2);
+			if(this.options?.hasExtreme && this.extremeElmts[i])
+				this.extremeElmts[i].innerHTML = Math.floor((statValue + substatValue) / 5);
 		}
 
 		if(this.options?.showRemaining && this.remainingElmt)
 			this.remainingElmt.innerHTML = this.remaining?.toString();
-
-		this.dropdownGroup?.update();*/
 	}
-	private addItem(substat?: string, value?: number, limit?: number): void //When substat is undefined, it means the add button have been pressed, so the user should select its substat later.
+	private addItem(substat: string, value?: number, limit?: number): void
 	{
 		const container = this.content.createDiv("character-builder-substat-container");
+		this.statElmts.push(container);
 
+		this.substats.push(substat);
+		this.levelSubstats[substat] = value || 0;
+
+		const substatElmt = container.createSpan({ cls: "character-builder-substat-name", text: substat });
 		if(this.options?.hasStatPicker)
 		{
-			container.createSpan("character-builder-substat-remove").addEventListener("click", () => this.remove(talent));
-			new SearchField(container, "Stat").onSuggest(value => Substats.map(e => e.name).filter(e => e.includes(value))).onSelect(console.log);
-			//container.createSpan("character-builder-substat-remove").addEventListener("click", () => this.remove(talent));
+			substatElmt.createSpan("character-builder-substat-remove").addEventListener("click", () => this.removeItem(substat));
 		}
 		if(this.options?.hasValuePicker)
+		{
+			const valueElmt = //new HTMLStatElement(container).change(() => this.update());
 
-		if(this.options?.hasNormal)
+			new HTMLStatElement(container, 0, limit ?? 20).change((oldVal, newVal) => {
+					if(oldVal === newVal)
+						return;
 
-		if(this.options?.hasHigh)
+					if(oldVal !== undefined)
+						this.remaining += oldVal;
 
-		if(this.options?.hasExtreme)
+					if(newVal > this.remaining)
+						newVal = this.remaining, this.remaining = 0;
+					else
+						this.remaining -= newVal;
 
-		container.createDiv("character-builder-substat-container");
-		container.createDiv("character-builder-substat-container");
-		container.createDiv("character-builder-substat-container");
+					this.levelSubstats[substat] = newVal;
+					this.update();
+					this.cb && this.cb();
+
+					return newVal;
+				}).value(this.levelSubstats[substat]);
+
+			this.valueElmts.push(valueElmt);
+		}
+		if(this.options?.hasNormal || this.options?.hasHigh || this.options?.hasExtreme)
+		{
+			container.createDiv(undefined, div => {
+				if(this.options?.hasNormal)
+				{
+					this.normalElmts.push(container.createEl("i"));
+				}
+				if(this.options?.hasHigh)
+				{
+					this.highElmts.push(container.createEl("i"));
+				}
+				if(this.options?.hasExtreme)
+				{
+					this.extremeElmts.push(container.createEl("i"));
+				}
+			});
+		}
+
+		this.update();
 	}
-	private removeItem(substat?: string): void //If substat is undefined, it is supposed to remove the blank substat.
+	private removeItem(substat: string): void
 	{
+		const idx = this.substats.findIndex(e => e === substat);
 
+		if(idx === -1)
+			return;
+
+		if(this.options?.hasValuePicker)
+		{
+			this.valueElmts.splice(idx, 1);
+		}
+		if(this.options?.hasNormal)
+		{
+			this.normalElmts.splice(idx, 1);
+		}
+		if(this.options?.hasHigh)
+		{
+			this.highElmts.splice(idx, 1);
+		}
+		if(this.options?.hasExtreme)
+		{
+			this.extremeElmts.splice(idx, 1);
+		}
+
+		this.remaining += this.levelSubstats[substat];
+		delete this.levelSubstats[substat];
+
+		this.substats.splice(idx, 1);
+		this.statElmts[idx].remove();
+		this.statElmts.splice(idx, 1);
+
+		this.update();
+		this.cb && this.cb();
+	}
+}
+
+export class SuggestComponent extends TextComponent
+{
+	popover: PopoverSuggest;
+
+	renderCb: (value: string, elmt: HTMLElement) => void;
+	suggestCb: (value: string) => void;
+	selectCb: (value: string) => void;
+	constructor(parent: HTMLElement)
+	{
+		super(parent);
+		this.popover = new PopoverSuggest(app);
+		this.popover.selectSuggestion = this.selectSuggestion.bind(this);
+		this.popover.renderSuggestion = this.renderSuggestion.bind(this);
+
+		this.inputEl.addEventListener("input", () => this.onInputChange());
+		this.inputEl.addEventListener("focus", () => this.onInputChange());
+		this.inputEl.addEventListener("blur", () => this.popover.close());
+		this.popover.suggestEl.on("mousedown", ".suggestion-item", e => e.preventDefault());
+	}
+
+	private onInputChange()
+	{
+		const suggests = this.suggestCb && this.suggestCb(this.getValue());
+		if(suggests.length > 0)
+		{
+			this.popover.suggestions.setSuggestions(suggests);
+			this.popover.open();
+			this.popover.setAutoDestroy(this.inputEl);
+			this.popover.reposition(SuggestComponent.getPos(this.inputEl));
+		}
+		else
+			this.popover.close();
+	}
+	private selectSuggestion(value: string): void
+	{
+		this.setValue(value);
+
+		this.selectCb && this.selectCb(value);
+		this.inputEl.trigger("input");
+
+		this.popover.close();
+	}
+	private renderSuggestion(value: string, elmt: HTMLElement): void
+	{
+		if(this.renderCb)
+			this.renderCb(value, elmt);
+		else
+		{
+			const strong = this.getValue();
+			const pos = value.toLowerCase().indexOf(strong.toLowerCase());
+			elmt.createDiv(undefined, div => {
+				div.createSpan({text: value.substring(0, pos)});
+				div.createEl("strong", {text: value.substring(pos, pos + strong.length)});
+				div.createSpan({text: value.substring(pos + strong.length)});
+			});
+		}
+	}
+	onRenderSuggest(cb: (value: string, elmt: HTMLElement) => void): SuggestComponent
+	{
+		this.renderCb = cb;
+
+		return this;
+	}
+	onSuggest(cb: (value: string) => string[]): SuggestComponent
+	{
+		this.suggestCb = cb;
+
+		return this;
+	}
+	onSelect(cb: (value: string) => void): SuggestComponent
+	{
+		this.selectCb = cb;
+
+		return this;
+	}
+
+	static getPos(e: HTMLElement)
+	{
+		const elmt = e;
+		for (var n = 0, i = 0, r = null; e && e !== r;)
+		{
+			n += e.offsetTop,
+			i += e.offsetLeft;
+			for (var o = e.offsetParent, a = e.parentElement; a && a !== o; )
+				n -= a.scrollTop,
+				i -= a.scrollLeft,
+				a = a.parentElement;
+			o && o !== r && (n -= o.scrollTop,
+			i -= o.scrollLeft),
+			e = o
+		}
+		return {
+			left: i,
+			right: i + elmt.offsetWidth,
+			top: n,
+			bottom: n + elmt.offsetHeight
+		};
 	}
 }

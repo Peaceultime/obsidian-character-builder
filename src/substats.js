@@ -17,12 +17,20 @@ export default [
         ]
     },
     {
-        "name": "Nage",
-        "stat": "strength|dexterity"
+        "name": "Nage (Force)",
+        "stat": "strength"
     },
     {
-        "name": "Escalade",
-        "stat": "strength|dexterity"
+        "name": "Escalade (Force)",
+        "stat": "strength"
+    },
+    {
+        "name": "Nage (Dextérité)",
+        "stat": "dexterity"
+    },
+    {
+        "name": "Escalade (Dextérité)",
+        "stat": "sexterity"
     },
     {
         "name": "Combat distance",

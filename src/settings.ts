@@ -1,5 +1,5 @@
 import { PluginSettingTab, Setting } from 'obsidian';
-import { Dropdown, TextField } from 'src/components.ts';
+import { Dropdown, TextField, SuggestField } from 'src/components.ts';
 import { CharacterBuilderCache as Cache } from 'src/cache.ts';
 
 export interface CharacterBuilderSettings {
@@ -62,13 +62,13 @@ export class CharacterBuilderSettingTab extends PluginSettingTab {
 
 		containerEl.createEl('h2', {text: 'Dossiers'});
 
-		new TextField(containerEl, "Dossier des personnages", false).link(this.plugin.savedData.settings, "charactersFolder").onChange(value => this.dirty = true);
-		new TextField(containerEl, "Dossier des races", false).link(this.plugin.savedData.settings, "racesFolder").onChange(value => this.dirty = true);
-		new TextField(containerEl, "Dossier des talents", false).link(this.plugin.savedData.settings, "talentsFolder").onChange(value => this.dirty = true);
+		new SuggestField(containerEl, "Dossier des personnages", false).link(this.plugin.savedData.settings, "charactersFolder").onSuggest(v => this.app.vault.getAllLoadedFiles().filter(e => e.hasOwnProperty("children") && e.path.toLowerCase().includes(v.toLowerCase())).map(e => e.path)).onSelect(value => this.dirty = true);
+		new SuggestField(containerEl, "Dossier des races", false).link(this.plugin.savedData.settings, "racesFolder").onSuggest(v => this.app.vault.getAllLoadedFiles().filter(e => e.hasOwnProperty("children") && e.path.toLowerCase().includes(v.toLowerCase())).map(e => e.path)).onSelect(value => this.dirty = true);
+		new SuggestField(containerEl, "Dossier des talents", false).link(this.plugin.savedData.settings, "talentsFolder").onSuggest(v => this.app.vault.getAllLoadedFiles().filter(e => e.hasOwnProperty("children") && e.path.toLowerCase().includes(v.toLowerCase())).map(e => e.path)).onSelect(value => this.dirty = true);
 
 		containerEl.createEl('h2', {text: 'Modèles'});
 
-		new TextField(containerEl, "Modèle de fiche", false).link(this.plugin.savedData.settings, "characterTemplate").onChange(value => this.dirty = true);
+		new SuggestField(containerEl, "Modèle de fiche", false).link(this.plugin.savedData.settings, "characterTemplate").onSuggest(v => this.app.vault.getAllLoadedFiles().filter(e => !e.hasOwnProperty("children") && e.path.toLowerCase().includes(v.toLowerCase())).map(e => e.path)).onChange(value => this.dirty = true);
 
 		containerEl.createEl('h2', {text: 'Stats principales'});
 

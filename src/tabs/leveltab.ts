@@ -15,6 +15,7 @@ export class LevelTab extends Tab
 	talentLists: TalentList[];
 
 	statblocks: StatBlockElement[];
+	substats: SubstatPicker[];
 	hps: Slider[];
 	focuses: Slider[];
 
@@ -31,6 +32,7 @@ export class LevelTab extends Tab
 		this.talents = [];
 		this.talentLists = [];
 		this.statblocks = [];
+		this.substats = [];
 		this.hps = [];
 		this.focuses = [];
 
@@ -107,17 +109,19 @@ export class LevelTab extends Tab
 				talentList.onRemove((talent: Talent) => {
 					this.removeDependencies(talent, level);
 				}).onAddButton(() => this.pickTalent(talentList, level));
-				new SubstatPicker(div, this.metadata, {
+				this.substats.push(new SubstatPicker(div, this.metadata, {
 					statAmount: 22,
 
 					hasNormal: true,
+					hasHigh: true,
+					hasExtreme: true,
 					hasStatPicker: true,
 					hasValuePicker: true,
 
 					showRemaining: true,
 
 					level: level.level,
-				});
+				}).onChange(() => this.update()));
 			});
 		}, e => {
 			new Menu(this.app).addItem((item) =>
@@ -204,7 +208,8 @@ export class LevelTab extends Tab
 			this.statblocks[i].update();
 		}
 
-		this.updateSubstats();
+		for(let i = 0; i < this.substats.length; i++)
+			this.substats[i].update();
 	}
 	updateSliderTooltips()
 	{
@@ -217,10 +222,6 @@ export class LevelTab extends Tab
 			focus += this.focuses[i].component.getValue();
 			this.focuses[i].tooltip(focus);
 		}
-	}
-	updateSubstats()
-	{
-
 	}
 }
 
