@@ -19,11 +19,27 @@ export class HTMLStatElement {
 		this.component = parent.createEl("input", { type: "number", cls: "character-builder-stat-input", attr: { min: min, max: max, step: step } });
 		this.component.addEventListener("change", this._onChange.bind(this));
 	}
-	limit(min?: number, max?: number, step: number = 1)
+	limit(min?: number, max?: number, step: number = 1): HTMLStatElement
 	{
-		this.min = min;
-		this.max = max;
-		//this.component.attributes
+		this.min = min ?? this.min;
+		this.max = max ?? this.max;
+
+		this.component.setAttribute("min", this.min);
+		this.component.setAttribute("max", this.max);
+		this.component.setAttribute("step", step);
+
+		return this;
+	}
+	disable(state: boolean): HTMLStatElement
+	{
+		this.component.toggleClass("disabled", state);
+
+		if(state)
+			this.component.setAttribute("disabled", undefined);
+		else
+			this.component.removeAttribute("disabled");
+
+		return this;
 	}
 	value(value: number): HTMLStatElement
 	{
@@ -243,7 +259,7 @@ export class StatBlockElement
 				const buffedStat = this.metadata.levels.find(e => e.level === this.options?.hasEvenLevelPicker).buffedStat;
 				if(this.options?.maxStat && stat.initial + stat.bonus + levelBonus >= this.options?.maxStat && buffedStat !== stats[i])
 					this.evenLevelPickerElmts[i]?.setDisabled(true);
-				else if(buffedStat === "")
+				else if(buffedStat === "" || buffedStat == undefined)
 					this.evenLevelPickerElmts[i]?.setDisabled(false);
 				else
 					this.evenLevelPickerElmts[i]?.setDisabled(buffedStat !== stats[i]);
@@ -430,6 +446,7 @@ export interface SubstatsOptions
 {
 	statAmount?: number;
 
+	hasWholeBonus?: boolean;
 	hasNormal?: boolean;
 	hasHigh?: boolean;
 	hasExtreme?: boolean;
@@ -447,6 +464,7 @@ export class SubstatPicker
 	substats: string[];
 	statElmts: HTMLElement[] = [];
 	valueElmts: HTMLStatELement[] = [];
+	wholeBonusElmts: HTMLELement[] = [];
 	normalElmts: HTMLELement[] = [];
 	highElmts: HTMLELement[] = [];
 	extremeElmts: HTMLELement[] = [];
@@ -465,14 +483,35 @@ export class SubstatPicker
 		const settings = Cache.cache("settings");
 
 		this.container = parent.createDiv();
-		this.container.createEl("h5", { cls: "character-builder-talents-title", text: "Stats secondaires" });
 		this.container.createDiv("character-builder-substats-container", div => {
 			if(options?.hasStatPicker || options?.showRemaining)
 				div.createDiv(undefined, div2 => {
 					if(options?.hasStatPicker)
 					{
-						const suggest = new SuggestComponent(div2).onSuggest(value => Substats.map(e => e.name).filter(e => e.toLowerCase().includes(value.toLowerCase()) && !this.substats.includes(e)));
-						suggest.onSelect((v) => { this.addItem(v); suggest.setValue(""); });
+						div2.createDiv(undefined, div3 => {
+							const suggest = new SuggestComponent(div3).onSuggest(value => {
+								return Substats.flatMap(e => e.choices?.map(f => `${e.name}#${f}`) ?? e.name).filter(e => e.toLowerCase().includes(value.toLowerCase()) && !this.substats.includes(e))
+							});
+							suggest.onSelect((v) => { this.addItem(v); suggest.setValue(""); });
+							if(options?.level !== 1)
+							{
+								const button = new ButtonComponent(div3).setButtonText("Reprendre les niveaux précédents").onClick(() => {
+									const levels = this.metadata.levels;
+									for(let i = 0; i < levels.length; i++)
+									{
+										if(levels[i].level >= options?.level)
+											continue;
+										
+										const substats = Object.keys(levels[i].buffedSubstats);
+										for(let j = 0; j < substats.length; j++)
+										{
+											if(!this.substats.includes(substats[j]))
+												this.addItem(substats[j]);
+										}
+									}
+								});
+							}
+						})
 					}
 
 					if(options?.showRemaining)
@@ -508,7 +547,7 @@ export class SubstatPicker
 		for(let i = 0; i < this.substats.length; i++)
 		{
 			const substat = this.substats[i];
-			const stat = Substats.find(e => e.name === substat).stat;
+			const stat = Substats.find(e => substat.startsWith(e.name)).stat;
 
 			let statValue = this.metadata.statBlock[stat].initial + this.metadata.statBlock[stat].bonus, substatValue = 0;
 			for(let j = 1; j <= this.options?.level; j++)
@@ -517,13 +556,28 @@ export class SubstatPicker
 				substatValue += this.metadata.levels.find(e => e.level === j)?.buffedSubstats[substat] || 0;
 			}
 
-			if(this.options?.hasValuePicker && substatValue - this.levelSubstats[substat] >= this.options.level * 2)
+			const previousLevelSubstat = substatValue - this.levelSubstats[substat];
+			if(this.options?.hasValuePicker && previousLevelSubstat >= 40)
 			{
-				this.valueElmts.limit()
+				this.valueElmts[i]?.disable(true);
+			}
+			else if(this.options?.hasValuePicker && this.options?.level === 1)
+			{
+				this.valueElmts[i]?.disable(false)?.limit(0, 20);
+			}
+			else if(this.options?.hasValuePicker && previousLevelSubstat >= this.options.level * 2)
+			{
+				this.valueElmts[i]?.disable(false)?.limit(0, 2);
+			}
+			else if(this.options?.hasValuePicker)
+			{
+				this.valueElmts[i]?.disable(false)?.limit(0, this.options.level * 2 - previousLevelSubstat);
 			}
 
+			if(this.options?.hasWholeBonus && this.wholeBonusElmts[i])
+				this.wholeBonusElmts[i].innerHTML = `+ ${substatValue}`;
 			if(this.options?.hasNormal && this.normalElmts[i])
-				this.normalElmts[i].innerHTML = Math.floor(statValue + substatValue);
+				this.normalElmts[i].innerHTML = statValue + substatValue;
 			if(this.options?.hasHigh && this.highElmts[i])
 				this.highElmts[i].innerHTML = Math.floor((statValue + substatValue) / 2);
 			if(this.options?.hasExtreme && this.extremeElmts[i])
@@ -533,7 +587,7 @@ export class SubstatPicker
 		if(this.options?.showRemaining && this.remainingElmt)
 			this.remainingElmt.innerHTML = this.remaining?.toString();
 	}
-	private addItem(substat: string, value?: number, limit?: number): void
+	private addItem(substat: string, value?: number): void
 	{
 		const container = this.content.createDiv("character-builder-substat-container");
 		this.statElmts.push(container);
@@ -548,9 +602,7 @@ export class SubstatPicker
 		}
 		if(this.options?.hasValuePicker)
 		{
-			const valueElmt = //new HTMLStatElement(container).change(() => this.update());
-
-			new HTMLStatElement(container, 0, limit ?? 20).change((oldVal, newVal) => {
+			const valueElmt = new HTMLStatElement(container, 0, 20).change((oldVal, newVal) => {
 					if(oldVal === newVal)
 						return;
 
@@ -574,6 +626,10 @@ export class SubstatPicker
 		if(this.options?.hasNormal || this.options?.hasHigh || this.options?.hasExtreme)
 		{
 			container.createDiv(undefined, div => {
+				if(this.options?.hasWholeBonus)
+				{
+					this.wholeBonusElmts.push(container.createEl("i"));
+				}
 				if(this.options?.hasNormal)
 				{
 					this.normalElmts.push(container.createEl("i"));
@@ -601,6 +657,10 @@ export class SubstatPicker
 		if(this.options?.hasValuePicker)
 		{
 			this.valueElmts.splice(idx, 1);
+		}
+		if(this.options?.hasWholeBonus)
+		{
+			this.wholeBonusElmts.splice(idx, 1);
 		}
 		if(this.options?.hasNormal)
 		{

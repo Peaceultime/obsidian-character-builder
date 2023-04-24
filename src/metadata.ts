@@ -126,7 +126,7 @@ export class TalentMetadata
 		}
 		else
 		{
-			return `![[${talent.name}#${Cache.cache(`talents/registry/${talent.name}`).heading}]]`;
+			return `![[${talent.name}#${Cache.cache(`talents/registry/${talent.name}/heading`)}]]`;
 		}
 	}
 	static text(talent: Talent): string

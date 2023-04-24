@@ -1,9 +1,10 @@
-import { Setting, MarkdownPreviewView, Modal, App, ButtonComponent, Menu } from 'obsidian';
-import { Dropdown, TextField, TextArea, Slider } from 'src/components.ts';
+import { Setting, MarkdownPreviewView, Modal, App, ButtonComponent, Menu, HoverPopover } from 'obsidian';
+import { Dropdown, TextField, TextArea, Slider, MarkdownArea } from 'src/components.ts';
 import { Tab, TabContainer } from 'src/tab.ts';
 import { Substats, Stat, StatBlock, StatBlockNames, Metadata, TalentMetadata, Talent } from 'src/metadata.ts';
 import { HTMLStatElement, StatBlockElement, SubstatPicker } from 'src/htmlelements.ts';
 import { CharacterBuilderCache as Cache } from 'src/cache.ts';
+import { confirm as Confirm, ConfirmModalOptions } from 'src/modals.ts';
 
 export class LevelTab extends Tab
 {
@@ -40,7 +41,6 @@ export class LevelTab extends Tab
 
 		this.content.createDiv("character-builder-splitter-container", split => {
 			const levelUpBtn = new Setting(split).setName(`Ajouter le niveau ${this.levels.reduce((p, v) => Math.max(p, v.level), 0) + 1}`).addButton(btn => btn.setIcon("lucide-plus-circle").onClick((e) => {
-				console.log(e);
 				const level = {
 					level: this.levels.reduce((p, v) => Math.max(p, v.level), 0) + 1,
 					talents: [],
@@ -104,14 +104,21 @@ export class LevelTab extends Tab
 			})
 		
 			split.createDiv(undefined, div => {
-				const talentList = new TalentList(div, level.talents);
+				const talentList = new TalentList(app, div, level.talents);
 				this.talentLists.push(talentList);
-				talentList.onRemove((talent: Talent) => {
-					this.removeDependencies(talent, level);
+				talentList.onRemove(async (talent: Talent) => {
+					try {
+						await Confirm(app, {yesText: "Confirmer", noText: "Annuler", content: createSpan({text: "Voulez vous vraiment supprimer ce talent, et tous les talents qui en dépendent ?"})});
+						this.removeDependencies(talent, level);
+						return true;
+					} catch(e) {
+						return false;
+					}
 				}).onAddButton(() => this.pickTalent(talentList, level));
-				this.substats.push(new SubstatPicker(div, this.metadata, {
-					statAmount: 22,
+				this.substats.push(new SubstatPicker(group(div, `Stats secondaires`, true), this.metadata, {
+					statAmount: level.level === 1 ? 62 : 22,
 
+					hasWholeBonus: true,
 					hasNormal: true,
 					hasHigh: true,
 					hasExtreme: true,
@@ -133,6 +140,7 @@ export class LevelTab extends Tab
 					})
 			).showAtMouseEvent(e);
 		});
+		new MarkdownArea(group(grpEl, `Flavoring`, false)).link(level, `flavoring`);
 
 		this.update();
 	}
@@ -153,11 +161,11 @@ export class LevelTab extends Tab
 	{
 		level.talents.splice(level.talents.findIndex(e => TalentMetadata.compare(e, talent)), 1);
 
-		if(this.freeMode)
+		/*if(this.freeMode)
 		{
 			this.talents.splice(this.talents.findIndex(e => TalentMetadata.compare(e, talent)), 1);
 			return;
-		}
+		}*/
 
 		const currentTalents = [];
 		let count = 0;
@@ -227,15 +235,21 @@ export class LevelTab extends Tab
 
 class TalentList
 {
+	app: App;
+
 	container: HTMLElement;
 	content: HTMLElement;
 
 	talents: Talent[];
 	talentsEl: HTMLElement[];
 	addCb: () => void;
-	removeCb: (talent: Talent) => void;
-	constructor(parent: HTMLElement, talents: Talent[])
+	removeCb: (talent: Talent) => Promise<boolean>;
+
+	hoverPopover: HoverPopover; //Active popover
+
+	constructor(app: App, parent: HTMLElement, talents: Talent[])
 	{
+		this.app = app;
 		this.container = parent.createDiv();
 		this.container.createEl("h5", { cls: "character-builder-talents-title", text: "Talents" });
 		this.container.createDiv("character-builder-talents-container", div => {
@@ -250,8 +264,30 @@ class TalentList
 	}
 	add(talent: Talent): void
 	{
+		const elmt = this.content.createDiv({ cls: "character-builder-talent", text: TalentMetadata.text(talent) }, (div) => div.createSpan("character-builder-talent-remove").addEventListener("click", () => this.remove(talent)));
+		elmt.addEventListener("mouseover", () => this.onTalentHover(talent));
+
 		this.talents.push(talent);
-		this.talentsEl.push(this.content.createDiv({ cls: "character-builder-talent", text: TalentMetadata.text(talent) }, (div) => div.createSpan("character-builder-talent-remove").addEventListener("click", () => this.remove(talent))));
+		this.talentsEl.push(elmt);
+	}
+	async onTalentHover(talent: Talent): void
+	{
+		const popover = new HoverPopover(this, this.talentsEl[this.talents.findIndex(e => e.name === talent.name && e.subname === talent.subname)]);
+		const metadata = Cache.cache(`talents/registry/${talent.name}`);
+		const content = this.app.embedRegistry.getEmbedCreator(metadata.file)({
+			app: this.app,
+			linktext: null,
+			sourcePath: null,
+			containerEl: popover.hoverEl.createDiv(),
+			displayMode: true,
+			showInline: false,
+			depth: 0
+		}, metadata.file);
+		await content.loadFile();
+
+		const child = content.containerEl.firstChild;
+		child.remove();
+		content.containerEl.createDiv("markdown-embed-content").appendChild(child);
 	}
 	onAddButton(cb: () => void): TalentList
 	{
@@ -259,9 +295,11 @@ class TalentList
 
 		return this;
 	}
-	remove(talent: Talent, silent: boolean = false): void
+	async remove(talent: Talent, silent: boolean = false): void
 	{
-		if(TalentMetadata.includes(this.talents, talent))
+		const remove = !silent && this.removeCb && (await this.removeCb(talent));
+
+		if((silent || remove) && TalentMetadata.includes(this.talents, talent))
 		{
 			const idx = this.talents.findIndex(e => TalentMetadata.compare(e, talent));
 
@@ -269,11 +307,9 @@ class TalentList
 
 			this.talents.splice(idx, 1);
 			this.talentsEl.splice(idx, 1);
-
-			!silent && this.removeCb && this.removeCb(talent);
 		}
 	}
-	onRemove(cb: (talent: Talent) => void): TalentList
+	onRemove(cb: (talent: Talent) => Promise<boolean>): TalentList
 	{
 		this.removeCb = cb;
 

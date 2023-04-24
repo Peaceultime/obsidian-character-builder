@@ -226,6 +226,7 @@ export class Slider extends VisualComponent {
 		super(parent, name);
 		this.tooltipElmt = this.compElmt.createSpan({ cls: "character-builder-slider-tooltip" });
 		this.component = new SliderComponent(this.compElmt);
+		this.dynamicTooltip = dynamicTooltip;
 		this.onChange(value => {});
 	}
 	range(min: number, max: number, step: number): Slider

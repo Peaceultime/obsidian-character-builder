@@ -5,19 +5,18 @@ import SubstatsList from 'src/substats.js';
 export function print(data: any, template: string): string
 {
 	const settings = Cache.cache("settings");
-	let currentStatBlock = JSON.parse(JSON.stringify(data.statBlock));
-	let currentSubstats = JSON.parse(JSON.stringify(data.substats));
-	return template.replaceAll("{statblock}", statblock(currentStatBlock))
-					.replaceAll("{substatblock}", substats(data.levels.find(e => e.level === 1).buffedSubstats, currentStatBlock))
-					.replaceAll("{armor}", data.armor)
-					.replaceAll("{luck}", data.luck)
+	let startStatBlock = JSON.parse(JSON.stringify(data.statBlock));
+	return template.replaceAll("{statblock}", statblock(startStatBlock) ?? "")
+					.replaceAll("{substatblock}", substats(data.levels.find(e => e.level === 1).buffedSubstats, startStatBlock) ?? "")
+					.replaceAll("{armor}", data.armor ?? "")
+					.replaceAll("{luck}", data.luck ?? "")
 					.replaceAll("{race-name}", `${data.race.name}`)
 					.replaceAll("{race-desc}", `![[${settings.racesFolder}/${data.setting}/${data.race.name}#TRAITS GÉNÉRAUX]]\n![[${settings.racesFolder}/${data.setting}/${data.race.name}#BONUS GLOBAUX]]`)
 					.replaceAll("{subrace-name}", `${data.race.subname}`)
 					.replaceAll("{subrace-desc}", `![[${settings.racesFolder}/${data.setting}/${data.race.name}#${data.race.subname}]]`)
 					.replaceAll("{feature-name}", `${data.race.feature}`)
 					.replaceAll("{feature-desc}", Cache.cache(`races/${data.setting}/content/${data.race.name}/features/${data.race.feature}`))
-					.replaceAll("{flavoring}", data.flavoring)
+					.replaceAll("{flavoring}", data.flavoring ?? "")
 					.replaceAll(/\{begin-level\}(.*)\{end-level\}/gs, (d, p1) => {
 						let result = "";
 						for(let i = 0; i < data.levels.length; i++)
@@ -32,20 +31,27 @@ export function print(data: any, template: string): string
 								if(v.buffedStat)
 									p.statBlock[v.buffedStat].bonus += 3;
 
-								if(v.substats)
-									for(const [key, value] of Object.entries(v.substats))
-										p.substats[key] += value;
+								if(v.buffedSubstats)
+								{
+									for(const [key, value] of Object.entries(v.buffedSubstats))
+									{
+										if(!p.buffedSubstats.hasOwnProperty(key))
+											p.buffedSubstats[key] = value;
+										else
+											p.buffedSubstats[key] += value;
+									}
+								}
 
 								return p;
-							}, {statBlock: JSON.parse(JSON.stringify(data.statBlock)), substats: JSON.parse(JSON.stringify(data.substats)), hp: Cache.cache(`races/${data.setting}/content/${data.race.name}/health`), focus: 0});
+							}, {statBlock: JSON.parse(JSON.stringify(data.statBlock)), buffedSubstats: {}, hp: Cache.cache(`races/${data.setting}/content/${data.race.name}/health`), focus: 0});
 
 							result += text.replaceAll("{level-nb}", level.level)
 									.replaceAll("{level-hp}", `${sumValues.hp} (+${level.hp})`)
 									.replaceAll("{level-focus}", `${sumValues.focus} (+${level.focus})`)
 									.replaceAll("{level-talents}", level.talents.map(e => `${TalentMetadata.embed(e)}`).join("\n\n"))
 									.replaceAll("{level-statblock}", statblock(sumValues.statBlock))
-									.replaceAll("{level-substatblock}", substats(sumValues.substats, sumValues.statBlock))
-									.replaceAll("{level-flavoring}", level.flavoring)
+									.replaceAll("{level-substatblock}", substats(sumValues.buffedSubstats, sumValues.statBlock))
+									.replaceAll("{level-flavoring}", level.flavoring ?? "")
 									.replaceAll("{focus-name}", "Focus");
 						}
 						return result;
@@ -111,7 +117,7 @@ function substats(value: Substats, statBlock: StatBlock): string
 	const names = Object.keys(value);
 	for(let i = 0; i < names.length; i++)
 	{
-		const s = SubstatsList.find(e => e.name === names[i]).stat;
+		const s = SubstatsList.find(e => names[i].startsWith(e.name)).stat;
 		content += `- **${names[i]}**: +${stat(value[names[i]], 1)} (${stat(value[names[i]] + statBlock[s].initial + statBlock[s].bonus, 1)}, *${stat(value[names[i]] + statBlock[s].initial + statBlock[s].bonus, 2)}*, *${stat(value[names[i]] + statBlock[s].initial + statBlock[s].bonus, 5)}*)\n`;
 	}
 	return content;

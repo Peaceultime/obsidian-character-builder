@@ -42,25 +42,8 @@ export default class CharacterBuilder extends Plugin {
 
 		this.addSettingTab(new SettingTab(this.app, this));
 
-		this.registerEvent(
-			this.app.workspace.on("file-menu", (menu, file, source, leaf) => {
-				const metadata = this.app.metadataCache.getFileCache(file);
-				if(metadata.hasOwnProperty("frontmatter") && metadata.frontmatter.type === "character")
-				{
-					menu.addSeparator().addItem(item => {
-						item.setTitle("Modifier le personnage").setIcon("calculator").onClick(async () => {
-							if(this.tabs.find(e => e.file === file))
-								return new Notice("Ce personnage est déjà en cours d'edition");
-
-							if(!leaf)
-								leaf = this.app.workspace.getLeaf(true);
-							await leaf.setViewState({ type: VIEW_TYPE_CHARACTER_BUILDER_FULL, active: true, state: { file: file.path } });
-							this.app.workspace.revealLeaf(leaf);
-						});
-					});
-				}
-			})
-		);
+		this.registerEvent( this.app.workspace.on("file-menu", (menu, file, source, leaf) => this.onContextMenu(menu, file, leaf)));
+		this.registerEvent( this.app.workspace.on("editor-menu", (menu, editor, info) => this.onContextMenu(menu, info?.file, info?.leaf)));
 
 		this.registerEvent(this.app.vault.on("delete", file => {
 			const tab = this.tabs.find(e => e.file && e.file === file);
@@ -95,4 +78,27 @@ export default class CharacterBuilder extends Plugin {
 	removeTab(view: CharacterBuilderFullView): void {
 		this.tabs.includes(view) && this.tabs.splice(this.tabs.findIndex(e => e === view), 1);
 	}
+
+	async onContextMenu(menu: Menu, file?: TAbstractFile, leaf?: WorkspaceLeaf): void
+	{
+		if(!file)
+			return;
+
+		const metadata = this.app.metadataCache.getFileCache(file);
+		if(metadata.hasOwnProperty("frontmatter") && metadata.frontmatter.type === "character")
+		{
+			menu.addSeparator().addItem(item => {
+				item.setTitle("Modifier le personnage").setIcon("calculator").onClick(async () => {
+					if(this.tabs.find(e => e.file === file))
+						return new Notice("Ce personnage est déjà en cours d'edition");
+
+					if(!leaf)
+						leaf = this.app.workspace.getLeaf(true);
+					await leaf.setViewState({ type: VIEW_TYPE_CHARACTER_BUILDER_FULL, active: true, state: { file: file.path } });
+					this.app.workspace.revealLeaf(leaf);
+				});
+			});
+		}
+	}
 }
+
