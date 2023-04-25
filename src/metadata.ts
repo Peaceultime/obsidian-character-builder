@@ -97,11 +97,9 @@ export class TalentMetadata
 
 		if(this.level === Infinity || this.file.parent.name.includes("Talent de base")) this.level = 1;
 
-		if(metadata.frontmatter)
-		{
-			if(metadata.frontmatter.options)
-				this.options = metadata.frontmatter.options.map(e => { return { name: this.talent.name, subname: e }; });
-		}
+		this.options = hierarchy && hierarchy[0] && hierarchy[0]?.hierarchy?.filter(e => e.level === 2)?.map(e => { return { name: file.basename, subname: e.heading.replace(/[\(\)\*]/g, "")}; } ) || undefined;
+		if(this.options && this.options.length === 0)
+			this.options = undefined;
 	}
 	static fromLink(link: string): Talent
 	{
@@ -201,12 +199,20 @@ export class RaceMetadata
 		this.valid = true;
 		this.file = file;
 		this.metadata = metadata;
-		this.content = content.substring(metadata.headings[0].position.start.offset, metadata.headings[2].position.start.offset - 1);
-		this.subraces = metadata.headings.slice(0, metadata.headings.findIndex(e => e.heading.startsWith("BONUS RACIA"))).map((e, i) => i).slice(3).map(e => metadata.headings[e].heading).reduce((p, v) => {
+		const globalBonusIdx = metadata.headings.findIndex(e => e.heading.toUpperCase() === "BONUS GLOBAUX");
+		this.content = content.substring(metadata.headings[0].position.start.offset, metadata.headings[globalBonusIdx + 1].position.start.offset - 1);
+		this.subraces = metadata.headings.slice(0, metadata.headings.findIndex(e => e.heading.replaceAll("*", "").toUpperCase().startsWith("BONUS RACIA") || e.heading.replaceAll("*", "").toUpperCase().startsWith("OPTION"))).map((e, i) => i).slice(globalBonusIdx + 2).map(e => metadata.headings[e].heading).reduce((p, v) => {
 			p[v] = contentOfHeading(metadata, content, v, true); return p;
 		}, {});
-		const idx = metadata.headings.findIndex(e => e.heading.startsWith("BONUS RACIA"));
-		const start = metadata.headings[idx].position.end.offset, end = idx === metadata.headings.length - 1 ? content.length - 1 : metadata.headings[idx + 1].position.start.offset;
+		const idx = metadata.headings.findIndex(e => e.heading.replaceAll("*", "").toUpperCase().startsWith("BONUS RACIA") || e.heading.replaceAll("*", "").toUpperCase().startsWith("OPTION"));
+
+		if(idx === -1)
+		{
+			this.valid = false;
+			return;
+		}
+
+		const start = metadata.headings[idx].position.end.offset, end = idx === metadata.headings.length - 1 ? content.length : metadata.headings[idx + 1].position.start.offset;
 		this.features = metadata.sections.reduce((p, v) => { 
 			if(v.position.start.offset >= start && v.position.end.offset <= end) 
 			{
@@ -221,27 +227,41 @@ export class RaceMetadata
 
 		this.race = { name: file.basename };
 
-		if(metadata.frontmatter)
+		const hpMatch = /.+?points de vie.+?niveau 1.+?(\d+)\.?\n?/i.exec(this.content);
+		this.health = hpMatch ? parseInt(hpMatch[1]) : 0;
+
+		let bonusesMatch = /Augmentation.+? (.+?)\n/i.exec(this.content);
+
+		if(!bonusesMatch)
 		{
-			if(metadata.frontmatter.hasOwnProperty("hp"))
+			this.valid = false;
+			return;
+		}
+		bonusesMatch = bonusesMatch[1].trim().replace(/\*\,\./g, "").toLowerCase();
+		const stats = Object.values(StatBlockNames);
+		this.race.bonus1 = this.race.bonus2 = this.race.bonus3 = "";
+		for(let i = 0; i < stats.length; i++)
+		{
+			if(bonusesMatch.includes(stats[i].toLowerCase()))
 			{
-				this.health = metadata.frontmatter.hp;
-			}
-			if(metadata.frontmatter.hasOwnProperty("bonus1"))
-			{
-				this.race.bonus1 = metadata.frontmatter.bonus1;
-			}
-			if(metadata.frontmatter.hasOwnProperty("bonus2"))
-			{
-				this.race.bonus2 = metadata.frontmatter.bonus2;
-			}
-			if(metadata.frontmatter.hasOwnProperty("bonus3"))
-			{
-				this.race.bonus3 = metadata.frontmatter.bonus3;
-			}
-			if(metadata.frontmatter.hasOwnProperty("penality"))
-			{
-				this.race.malus1 = metadata.frontmatter.penality;
+				const followingBonus = /\d/.exec(bonusesMatch.substring(bonusesMatch.indexOf(stats[i].toLowerCase())));
+				if(followingBonus && followingBonus[0] === '6')
+				{
+					this.race.malus1 = getStatFromLocale(stats[i]);
+				}
+				else if(this.race.bonus1 === "")
+				{
+					this.race.bonus1 = getStatFromLocale(stats[i]);
+				}
+				else if(this.race.bonus2 === "")
+				{
+					this.race.bonus2 = getStatFromLocale(stats[i]);
+				}
+				else if(this.race.bonus3 === "")
+				{
+					this.race.bonus3 = getStatFromLocale(stats[i]);
+				}
+				bonusesMatch = bonusesMatch.replaceAll(stats[i].toLowerCase(), "");
 			}
 		}
 	}
@@ -297,4 +317,8 @@ function contentOfHeading(metadata: any, content: string, heading: string, inclu
 			end = sec.position.end.offset;
 	}
 	return content.substring(start, end);
+}
+function getStatFromLocale(text: string): string
+{
+	return Object.keys(StatBlockNames)[Object.values(StatBlockNames).findIndex(e => e.toLowerCase() === text.toLowerCase())];
 }
