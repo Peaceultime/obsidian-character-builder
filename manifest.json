@@ -1,7 +1,7 @@
 {
 	"id": "character-builder-plugin",
 	"name": "Créateur de personnage",
-	"version": "0.0.1a",
+	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
 	"description": "JDR !",
 	"author": "Peaceultime",

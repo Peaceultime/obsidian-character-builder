@@ -438,6 +438,7 @@ If your plugin does not need CSS, delete this file.
     overflow: hidden;
     flex: auto;
     padding: var(--size-4-4) var(--size-4-4) var(--size-4-4) var(--size-4-2);
+    max-width: 80vw;
 }
 
 .character-builder-talent-modal .modal-content {

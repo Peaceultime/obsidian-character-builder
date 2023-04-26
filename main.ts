@@ -62,7 +62,7 @@ export default class CharacterBuilder extends Plugin {
 		const data = await this.loadData();
 
 		this.savedData = Object.assign({}, DEFAULT_SETTINGS, data);
-		this.savedData.settings = Object.assign({}, DEFAULT_SETTINGS.settings, data.settings);
+		this.savedData.settings = Object.assign({}, DEFAULT_SETTINGS.settings, data?.settings);
 		this.settings = Cache.cache("settings", this.savedData.settings);
 	}
 
