@@ -37,6 +37,7 @@ export interface Level {
 
 export interface Metadata {
 	type: string;
+	freeMode: boolean;
 
 	setting: string;
 	name: string

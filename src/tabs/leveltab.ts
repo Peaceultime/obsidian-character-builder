@@ -19,16 +19,12 @@ export class LevelTab extends Tab
 	substats: SubstatPicker[];
 	hps: Slider[];
 	focuses: Slider[];
-
-	freeMode: boolean;
 	render(): void
 	{
 		const metadata = this.metadata = this.request("metadata");
 
 		this.content.empty();
 		this.requiredList = [];
-
-		this.freeMode = false;
 
 		this.talents = [];
 		this.talentLists = [];
@@ -39,24 +35,20 @@ export class LevelTab extends Tab
 
 		this.levels = metadata.levels;
 
-		this.content.createDiv("character-builder-splitter-container", split => {
-			const levelUpBtn = new Setting(split).setName(`Ajouter le niveau ${this.levels.reduce((p, v) => Math.max(p, v.level), 0) + 1}`).addButton(btn => btn.setIcon("lucide-plus-circle").onClick((e) => {
-				const level = {
-					level: this.levels.reduce((p, v) => Math.max(p, v.level), 0) + 1,
-					talents: [],
-					buffedStat: undefined,
-					buffedSubstats: {},
-					hp: 13,
-					focus: 0,
-					flavoring: undefined,
-				};
-				metadata.levels.push(level);
-				this.renderLevel(level);
-				levelUpBtn.setName(`Ajouter le niveau ${this.levels.reduce((p, v) => Math.max(p, v.level), 0) + 1}`);
-			}));
-
-			new Setting(split).setName(`Désactiver les restrictions`).addToggle(tgl => tgl.onChange(e => this.freeMode = e));
-		});
+		const levelUpBtn = new Setting(this.content).setName(`Ajouter le niveau ${this.levels.reduce((p, v) => Math.max(p, v.level), 0) + 1}`).addButton(btn => btn.setIcon("lucide-plus-circle").onClick((e) => {
+			const level = {
+				level: this.levels.reduce((p, v) => Math.max(p, v.level), 0) + 1,
+				talents: [],
+				buffedStat: undefined,
+				buffedSubstats: {},
+				hp: 13,
+				focus: 0,
+				flavoring: undefined,
+			};
+			metadata.levels.push(level);
+			this.renderLevel(level);
+			levelUpBtn.setName(`Ajouter le niveau ${this.levels.reduce((p, v) => Math.max(p, v.level), 0) + 1}`);
+		}));
 
 		if(metadata.levels.length === 0)
 		{
@@ -125,47 +117,19 @@ export class LevelTab extends Tab
 					hasStatPicker: true,
 					hasValuePicker: true,
 
-					showRemaining: true,
+					showRemaining: !this.metadata.freeMode,
 
 					level: level.level,
 				}).onChange(() => this.update()));
 			});
-		}, e => {
-			new Menu(this.app).addItem((item) =>
-				item
-					.setTitle("Supprimer")
-					.setIcon("lucide-trash-2")
-					.onClick(() => {
-						this.removeLevel(level);
-					})
-			).showAtMouseEvent(e);
 		});
 		new MarkdownArea(group(grpEl, `Flavoring`, false)).link(level, `flavoring`);
 
 		this.update();
 	}
-	removeLevel(level: Level)
-	{
-		/*new Promise();
-		talents: Talent[];
-		levels: Level[];
-
-		talentLists: TalentList[];
-
-		statblocks: StatBlockElement[];
-		hps: Slider[];
-		focuses: Slider[];*/
-		new Notice("Deleting");
-	}
 	removeDependencies(talent: Talent, level: Level)
 	{
 		level.talents.splice(level.talents.findIndex(e => TalentMetadata.compare(e, talent)), 1);
-
-		/*if(this.freeMode)
-		{
-			this.talents.splice(this.talents.findIndex(e => TalentMetadata.compare(e, talent)), 1);
-			return;
-		}*/
 
 		const currentTalents = [];
 		let count = 0;
@@ -195,9 +159,9 @@ export class LevelTab extends Tab
 	{
 		const metadata = this.request("metadata");
 
-		if(!this.freeMode && level.level === 1 && level.talents.length >= (6 - metadata.armor / 2))
+		if(!this.metadata.freeMode && level.level === 1 && level.talents.length >= (6 - metadata.armor / 2))
 			return new Notice("Vous avez déjà choisi tous vos talents pour ce niveau");
-		else if(!this.freeMode && level.level > 1 && level.talents.length >= 1)
+		else if(!this.metadata.freeMode && level.level > 1 && level.talents.length >= 1)
 			return new Notice("Vous avez déjà choisi tous vos talents pour ce niveau");
 
 		this.talentPicker.pick(this.talents, level.level).then(talent => {
@@ -212,7 +176,7 @@ export class LevelTab extends Tab
 
 		for(let i = 0; i < this.statblocks.length; i++)
 		{
-			this.statblocks[i].options.maxStat = this.freeMode ? 1000 : Cache.cache("settings").maxStat;
+			this.statblocks[i].options.maxStat = this.metadata.freeMode ? 1000 : Cache.cache("settings").maxStat;
 			this.statblocks[i].update();
 		}
 

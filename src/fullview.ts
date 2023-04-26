@@ -152,4 +152,12 @@ export class CharacterBuilderFullView extends ItemView {
 
 		await this.leaf.openFile(file);
 	}
+
+	onPaneMenu(menu: Menu, source: string): void
+	{
+		super.onPaneMenu(menu, source);
+		menu.addItem(item => {
+			item.setTitle("Désactiver les restrictions").setChecked(!!this.metadata.freeMode).onClick(e => { this.metadata.freeMode = !this.metadata.freeMode; this.refresh(true); });
+		});
+	}
 }

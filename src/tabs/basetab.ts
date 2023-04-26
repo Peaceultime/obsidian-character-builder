@@ -22,11 +22,13 @@ export class BaseTab extends Tab
 		const splitContainer = this.content.createDiv({ cls: "character-builder-splitter-container" });
 
 		new StatBlockElement(splitContainer, metadata, {
+			statAmount: metadata.freeMode ? 10000 : undefined,
+			maxStat: metadata.freeMode ? 1000 : undefined,
 			hasHighRow: true,
 			hasExtremeRow: true,
 			hasValuePicker: true,
 
-			showRemaining: true,
+			showRemaining: !metadata.freeMode,
 		});
 
 		splitElmt = splitContainer.createDiv();

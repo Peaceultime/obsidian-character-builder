@@ -28,6 +28,11 @@ export class HTMLStatElement {
 		this.component.setAttribute("max", this.max);
 		this.component.setAttribute("step", step);
 
+		if(this.val < this.min)
+			this.value(this.min);
+		if(this.val > this.max)
+			this.value(this.max);
+
 		return this;
 	}
 	disable(state: boolean): HTMLStatElement
@@ -167,16 +172,19 @@ export class StatBlockElement
 			if(options?.hasValuePicker)
 			{
 				this.pickerElmts.push(new HTMLStatElement(this.bufferElmt, settings.minStat, options.maxStat ?? settings.maxInitialStat).change((oldVal, newVal) => {
-					if(oldVal === newVal)
-						return;
+					if(!this.metadata.freeMode)
+					{
+						if(oldVal === newVal)
+							return;
 
-					if(oldVal !== undefined)
-						this.remaining += oldVal;
+						if(oldVal !== undefined)
+							this.remaining += oldVal;
 
-					if(newVal > this.remaining)
-						newVal = this.remaining, this.remaining = 0;
-					else
-						this.remaining -= newVal;
+						if(newVal > this.remaining)
+							newVal = this.remaining, this.remaining = 0;
+						else
+							this.remaining -= newVal;
+					}
 
 					stat.initial = newVal;
 					this.update();
@@ -274,7 +282,7 @@ export class StatBlockElement
 		}
 
 		if(this.options?.showRemaining && this.remainingElmt)
-			this.remainingElmt.innerHTML = this.remaining?.toString();
+			this.remainingElmt.innerHTML = this.metadata.freeMode ? "Libre" : this.remaining?.toString();
 
 		this.dropdownGroup?.update();
 	}
@@ -506,7 +514,7 @@ export class SubstatPicker
 										for(let j = 0; j < substats.length; j++)
 										{
 											if(!this.substats.includes(substats[j]))
-												this.addItem(substats[j]);
+												this.addItem(substats[j], 2);
 										}
 									}
 								});
@@ -557,9 +565,13 @@ export class SubstatPicker
 			}
 
 			const previousLevelSubstat = substatValue - this.levelSubstats[substat];
-			if(this.options?.hasValuePicker && previousLevelSubstat >= 40)
+			if(this.options?.hasValuePicker && this.metadata.freeMode)
 			{
-				this.valueElmts[i]?.disable(true);
+				this.valueElmts[i]?.disable(false)?.limit(0, 100);
+			}
+			else if(this.options?.hasValuePicker && previousLevelSubstat >= 40)
+			{
+				this.valueElmts[i]?.disable(true).limit(0, 0);
 			}
 			else if(this.options?.hasValuePicker && this.options?.level === 1)
 			{
@@ -585,7 +597,7 @@ export class SubstatPicker
 		}
 
 		if(this.options?.showRemaining && this.remainingElmt)
-			this.remainingElmt.innerHTML = this.remaining?.toString();
+			this.remainingElmt.innerHTML = this.metadata.freeMode ? "Libre" : this.remaining?.toString();
 	}
 	private addItem(substat: string, value?: number): void
 	{
@@ -603,16 +615,19 @@ export class SubstatPicker
 		if(this.options?.hasValuePicker)
 		{
 			const valueElmt = new HTMLStatElement(container, 0, 20).change((oldVal, newVal) => {
-					if(oldVal === newVal)
-						return;
+					if(!this.metadata.freeMode)
+					{
+						if(oldVal === newVal)
+							return;
 
-					if(oldVal !== undefined)
-						this.remaining += oldVal;
+						if(oldVal !== undefined)
+							this.remaining += oldVal;
 
-					if(newVal > this.remaining)
-						newVal = this.remaining, this.remaining = 0;
-					else
-						this.remaining -= newVal;
+						if(newVal > this.remaining)
+							newVal = this.remaining, this.remaining = 0;
+						else
+							this.remaining -= newVal;
+					}
 
 					this.levelSubstats[substat] = newVal;
 					this.update();
@@ -623,7 +638,7 @@ export class SubstatPicker
 
 			this.valueElmts.push(valueElmt);
 		}
-		if(this.options?.hasNormal || this.options?.hasHigh || this.options?.hasExtreme)
+		if(this.options?.hasWholeBonus || this.options?.hasNormal || this.options?.hasHigh || this.options?.hasExtreme)
 		{
 			container.createDiv(undefined, div => {
 				if(this.options?.hasWholeBonus)
@@ -675,7 +690,7 @@ export class SubstatPicker
 			this.extremeElmts.splice(idx, 1);
 		}
 
-		this.remaining += this.levelSubstats[substat];
+		this.remaining += this.metadata.freeMode ? 0 : this.levelSubstats[substat];
 		delete this.levelSubstats[substat];
 
 		this.substats.splice(idx, 1);
