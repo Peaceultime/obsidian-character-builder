@@ -1,4 +1,4 @@
-import { Setting, MarkdownPreviewView, Modal, App, ButtonComponent, Menu, HoverPopover } from 'obsidian';
+import { Setting, MarkdownPreviewView, Modal, App, ButtonComponent, Menu, HoverPopover, TextComponent } from 'obsidian';
 import { Dropdown, TextField, TextArea, Slider, MarkdownArea } from 'src/components.ts';
 import { Tab, TabContainer } from 'src/tab.ts';
 import { Substats, Stat, StatBlock, StatBlockNames, Metadata, TalentMetadata, Talent } from 'src/metadata.ts';
@@ -319,8 +319,6 @@ class TalentList
 
 class TalentPicker extends Modal
 {
-	talents: any;
-
 	current: TalentMetadata;
 
 	listElmt: HTMLElement;
@@ -331,17 +329,32 @@ class TalentPicker extends Modal
 	needOption: boolean;
 	currentOption: string;
 
+	search: TextComponent;
+	filter: string;
+
+	picked: Talent[];
+	level: number;
+
+	freeMode: boolean = false;
+
 	res: any;
 	rej: any;
 	constructor(app: App)
 	{
 		super(app);
-		this.talents = Cache.cache("talents/tree");
 
 		let { contentEl, modalEl } = this;
 		modalEl.classList.add("character-builder-talent-modal");
 		const container = contentEl.createDiv("character-builder-talent-list-container");
-		this.listElmt = container.createDiv("character-builder-talent-list");
+		const group = container.createDiv("character-builder-talent-list-group");
+
+		const searchGrp = group.createDiv("character-builder-talent-modal-search");
+		this.search = new TextComponent(searchGrp);
+		this.search.inputEl.addEventListener("input", e => { this.filter = this.search.getValue().toLowerCase(); this.renderList(); });
+
+		new Setting(searchGrp).setName(`Désactiver les restrictions`).addToggle(tgl => tgl.onChange(e => { this.freeMode = e; this.renderList(); }));
+
+		this.listElmt = group.createDiv("character-builder-talent-list");
 		this.content = container.createDiv("character-builder-talent-content");
 
 		contentEl.createDiv("character-builder-splitter-container", split => {
@@ -356,17 +369,26 @@ class TalentPicker extends Modal
 		return new Promise((res, rej) => {
 			this.res = res;
 			this.rej = rej;
+
+			this.picked = picked;
+			this.level = level;
 			this.open();
 
-			this.listElmt.empty();
 			this.content.empty();
-
-			for(const [title, content] of Object.entries(this.talents))
-				this.addGroup(title, content, this.listElmt, picked, level);
+			this.filter = "";
+			this.renderList();
 		});
 	}
 
-	addGroup(title: string, content: any, parent: HTMLElement, picked: Talent[], level: number): boolean
+	renderList()
+	{
+		this.listElmt.empty();
+
+		for(const [title, content] of Object.entries(Cache.cache("talents/tree")))
+			this.addGroup(title, content, this.listElmt);
+	}
+
+	addGroup(title: string, content: any, parent: HTMLElement): boolean
 	{
 		const container = parent.createDiv("character-builder-talent-group-container");
 		const header = container.createDiv("character-builder-talent-group-header", header => {
@@ -380,7 +402,7 @@ class TalentPicker extends Modal
 		{
 			if(childContent instanceof TalentMetadata)
 			{
-				if(TalentPicker.available(childContent, picked, level))
+				if((this.freeMode || TalentPicker.available(childContent, this.picked, this.level)) && childTitle.toLowerCase().includes(this.filter))
 				{
 					this.addTalent(childTitle, childContent, div);
 					count++;
@@ -388,7 +410,7 @@ class TalentPicker extends Modal
 			}
 			else
 			{
-				if(this.addGroup(childTitle, childContent, div, picked, level))
+				if(this.addGroup(childTitle, childContent, div, this.picked, this.level))
 					count++;
 			}
 		}
@@ -404,9 +426,15 @@ class TalentPicker extends Modal
 
 	addTalent(title: string, talent: TalentMetadata, parent: HTMLElement): void
 	{
+		const pos = title.toLowerCase().indexOf(this.filter);
+
 		parent.createDiv("character-builder-talent-item", item => { 
 			item.addEventListener("click", () => this.display(talent));
-		}).createSpan({ cls: "character-builder-talent-item-title", text: title });
+		}).createSpan("character-builder-talent-item-title", span => {
+			span.createSpan({text: title.substring(0, pos)});
+			span.createEl("strong", {text: title.substring(pos, pos + this.filter.length)});
+			span.createSpan({text: title.substring(pos + this.filter.length)});
+		});
 	}
 
 	static available(talent: TalentMetadata, picked: Talent[], level: number): boolean

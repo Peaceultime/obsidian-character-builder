@@ -385,12 +385,29 @@ If your plugin does not need CSS, delete this file.
     width: 100%;
 }
 
-.character-builder-talent-list {
+.character-builder-talent-list-group {
     width: 20%;
     border-right: 1px solid var(--background-modifier-border);
     margin: 8px 0px;
     height: calc(100% - 16px);
     overflow: auto;
+}
+
+.character-builder-talent-modal-search {
+    position: sticky;
+    top: 0;
+    background: var(--modal-background);
+    z-index: var(--layer-menu);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    padding: 2px 8px 8px 8px;
+}
+
+.character-builder-talent-modal-search > * {
+    flex: 1;
+    border: none;
 }
 
 .character-builder-talent-item, .character-builder-talent-group-header {

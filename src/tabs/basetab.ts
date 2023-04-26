@@ -31,7 +31,7 @@ export class BaseTab extends Tab
 
 		splitElmt = splitContainer.createDiv();
 		const armorSlider = new Slider(splitElmt, `Armure max`).desc(`L'armure maximum determine le nombre de talents disponibles au niveau 1.`).range(2, 6, 2).value(2);
-		const talentText = new TextField(splitElmt, `Talents au niveau 1`).disable(true).value(metadata.talents).class("text-field-no-editor");
+		const talentText = new TextField(splitElmt, `Talents au niveau 1`).disable(true).value(metadata.talents ?? 5).class("text-field-no-editor");
 		armorSlider.onChange(value => {
 			metadata.armor = value;
 			metadata.talents = 6 - value / 2;
