@@ -15,7 +15,8 @@ export interface CharacterBuilderSettings {
 	statAmount: number;
 	pointsForHpFocus: number;
 
-	substatAmount: number;
+	substatFirstLevel: number;
+	substatPerLevel: number;
 }
 
 export interface ViewSaveData {
@@ -44,7 +45,8 @@ export const DEFAULT_SETTINGS: SaveData = {
 		statAmount: 245,
 		pointsForHpFocus: 13,
 
-		substatAmount: 62,
+		substatFirstLevel: 62,
+		substatPerLevel: 22,
 	}
 };
 
@@ -82,7 +84,8 @@ export class CharacterBuilderSettingTab extends PluginSettingTab {
 
 		containerEl.createEl('h2', {text: 'Stats secondaires'});
 
-		new TextField(containerEl, "Points total disponible au niveau 1", false).link(this.plugin.savedData.settings, "substatAmount").onChange(value => this.dirty = true);
+		new TextField(containerEl, "Points disponible au niveau 1", false).link(this.plugin.savedData.settings, "substatFirstLevel").onChange(value => this.dirty = true);
+		new TextField(containerEl, "Points disponible par niveau", false).link(this.plugin.savedData.settings, "substatPerLevel").onChange(value => this.dirty = true);
 	}
 
 	hide()

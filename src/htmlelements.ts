@@ -515,7 +515,7 @@ export class SubstatPicker
 		this.metadata = metadata;
 		this.options = options;
 		this.substats = [];
-		this.remaining = options.statAmount ?? settings.substatAmount;
+		this.remaining = options.statAmount ?? settings.substatPerLevel;
 
 		this.levelSubstats = this.metadata.levels.find(e => e.level === this.options.level)?.buffedSubstats;
 		const substats = Object.keys(this.levelSubstats);

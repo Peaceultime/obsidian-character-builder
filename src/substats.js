@@ -4,6 +4,14 @@ export default [
         "stat": "strength"
     },
     {
+        "name": "Combat mêlée (Agi)",
+        "stat": "dexterity",
+        "choices": [
+            "Corps à corps",
+            "Épées"
+        ]
+    },
+    {
         "name": "Combat mêlée",
         "stat": "strength",
         "choices": [
@@ -17,19 +25,19 @@ export default [
         ]
     },
     {
-        "name": "Nage (Force)",
+        "name": "Nage (For)",
         "stat": "strength"
     },
     {
-        "name": "Escalade (Force)",
+        "name": "Escalade (For)",
         "stat": "strength"
     },
     {
-        "name": "Nage (Dextérité)",
+        "name": "Nage (Agi)",
         "stat": "dexterity"
     },
     {
-        "name": "Escalade (Dextérité)",
+        "name": "Escalade (Agi)",
         "stat": "sexterity"
     },
     {

@@ -90,7 +90,7 @@ function stat(value: Stat, divider: number = 1): string
 function statblock(value: StatBlock): string
 {
 	const header = Object.values(StatBlockNames);
-	const content = [[], [], []];
+	const content = [[]];
 	let i = 0;
 	for(const key in value)
 	{
@@ -98,8 +98,6 @@ function statblock(value: StatBlock): string
 			continue;
 
 		content[0][i] = `${value[key].initial + value[key].bonus} (**${value[key].bonus >= 0 ? "+" : ""}${value[key].bonus}**)`;
-		content[1][i] = `${stat(value[key], 2)}`;
-		content[2][i] = `${stat(value[key], 5)}`;
 		i++;
 	}
 	return table(header, content);
@@ -118,7 +116,7 @@ function substats(value: Substats, statBlock: StatBlock): string
 	for(let i = 0; i < names.length; i++)
 	{
 		const s = SubstatsList.find(e => names[i].startsWith(e.name)).stat;
-		content += `- **${names[i]}**: +${stat(value[names[i]], 1)} (${stat(value[names[i]] + statBlock[s].initial + statBlock[s].bonus, 1)}, *${stat(value[names[i]] + statBlock[s].initial + statBlock[s].bonus, 2)}*, *${stat(value[names[i]] + statBlock[s].initial + statBlock[s].bonus, 5)}*)\n`;
+		content += `- **${names[i]}**: +${stat(value[names[i]], 1)} (${stat(value[names[i]] + statBlock[s].initial + statBlock[s].bonus, 1)})\n`;
 	}
 	return content;
 }

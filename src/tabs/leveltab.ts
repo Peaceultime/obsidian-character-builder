@@ -19,6 +19,8 @@ export class LevelTab extends Tab
 	substats: SubstatPicker[];
 	hps: Slider[];
 	focuses: Slider[];
+
+	levelStats: StatBlock[];
 	render(): void
 	{
 		const metadata = this.metadata = this.request("metadata");
@@ -32,6 +34,7 @@ export class LevelTab extends Tab
 		this.substats = [];
 		this.hps = [];
 		this.focuses = [];
+		this.levelStats = metadata.levels.map(e => { return {}; });
 
 		this.levels = metadata.levels;
 
@@ -46,6 +49,8 @@ export class LevelTab extends Tab
 				flavoring: undefined,
 			};
 			metadata.levels.push(level);
+			this.levelStats.push({});
+			this.computeStats();
 			this.renderLevel(level);
 			levelUpBtn.setName(`Ajouter le niveau ${this.levels.reduce((p, v) => Math.max(p, v.level), 0) + 1}`);
 		}));
@@ -64,6 +69,7 @@ export class LevelTab extends Tab
 		}
 		this.talentPicker = new TalentPicker(this.container.app);
 
+		this.computeStats();
 		for(let i = 0; i < this.levels.length; i++)
 		{
 			this.talents.push(...this.levels[i].talents);
@@ -74,18 +80,10 @@ export class LevelTab extends Tab
 	{
 		const grpEl = group(this.content, `Niveau ${level.level}`, collapsed);
 
-		const stats = {};
-		for(let stat of Object.keys(this.metadata.statBlock))
-		{
-			stats[stat] = this.metadata.statBlock[stat].initial + this.metadata.statBlock[stat].bonus;
-			for(let j = 1; j <= level; j++)
-				stats[stat] += this.metadata.levels.find(e => e.level === j)?.buffedStat === stat ? 3 : 0;
-		}
-
 		grpEl.createDiv("character-builder-splitter-container", split => {
 			split.createDiv(undefined, div => {
 				const pointsForHpFocus = Cache.cache("settings/pointsForHpFocus");
-				const maxHp = Math.min(pointsForHpFocus, Math.floor(4 + (stats.constitution * 2 + stats.will) / 30));
+				const maxHp = Math.min(pointsForHpFocus, Math.floor(4 + (this.levelStats[level.level - 1].constitution * 2 + this.levelStats[level.level - 1].will) / 30));
 
 				const hp = new Slider(div, "PV", false).range(0, maxHp, 1).link(level, "hp");
 				const focus = new Slider(div, "Focus", false).range(pointsForHpFocus - maxHp, pointsForHpFocus, 1).link(level, "focus").desc(pointsForHpFocus + " points à repartir entre PV et focus.");
@@ -119,7 +117,7 @@ export class LevelTab extends Tab
 					}
 				}).onAddButton(() => this.pickTalent(talentList, level));
 				this.substats.push(new SubstatPicker(group(div, `Stats secondaires`, true), this.metadata, {
-					statAmount: level.level === 1 ? 62 : 22,
+					statAmount: level.level === 1 ? Cache.cache("settings/substatFirstLevel") : Cache.cache("settings/substatPerLevel"),
 
 					hasWholeBonus: true,
 					hasTotal: true,
@@ -148,7 +146,7 @@ export class LevelTab extends Tab
 			for(let j = 0; j < currentLevel.talents.length; j++)
 			{
 				const tal = currentLevel.talents[j];
-				if(!TalentPicker.available(Cache.cache(`talents/registry/${tal.name}`), currentTalents, currentLevel))
+				if(!TalentPicker.available(Cache.cache(`talents/registry/${tal.name}`), currentTalents, currentLevel, currentStats))
 				{
 					currentLevel.talents.splice(j, 1);
 					this.talentLists[i].remove(tal, true);
@@ -173,14 +171,28 @@ export class LevelTab extends Tab
 		else if(!this.metadata.freeMode && level.level > 1 && level.talents.length >= 1)
 			return new Notice("Vous avez déjà choisi tous vos talents pour ce niveau");
 
-		this.talentPicker.pick(this.talents, level.level).then(talent => {
+		this.talentPicker.pick(this.talents, level.level, this.levelStats[level.level - 1]).then(talent => {
 			this.talents.push(talent);
 			level.talents.push(talent);
 			talentList.add(talent);
 		}).catch(err => err && console.error(err));
 	}
+	computeStats()
+	{
+		for(let stat of Object.keys(this.metadata.statBlock))
+		{
+			this.levelStats[0][stat] = this.metadata.statBlock[stat].initial + this.metadata.statBlock[stat].bonus;	
+		}
+
+		for(let i = 1; i < this.metadata.levels.length; i++)
+		{
+			for(let stat of Object.keys(this.metadata.statBlock))
+				this.levelStats[i][stat] = this.levelStats[i - 1][stat] + (this.metadata.levels.find(e => e.level === i + 1)?.buffedStat === stat ? 3 : 0);
+		}
+	}
 	update()
 	{
+		this.computeStats();
 		this.updateSliderTooltips();
 
 		for(let i = 0; i < this.statblocks.length; i++)
@@ -196,19 +208,10 @@ export class LevelTab extends Tab
 	{
 		let hp = Cache.cache(`races/${this.metadata.setting}/content/${this.metadata.race.name}/health`), focus = 0;
 
-		const stats = {};
-		for(let stat of Object.keys(this.metadata.statBlock))
-		{
-			stats[stat] = this.metadata.statBlock[stat].initial + this.metadata.statBlock[stat].bonus;
-		}
-
 		for(let i = 0; i < this.hps.length; i++)
 		{
-			for(let stat of Object.keys(this.metadata.statBlock))
-				stats[stat] += this.metadata.levels.find(e => e.level === i + 1)?.buffedStat === stat ? 3 : 0;
-
 			const pointsForHpFocus = Cache.cache("settings/pointsForHpFocus");
-			const maxHp = Math.min(pointsForHpFocus, Math.floor(4 + (stats.constitution * 2 + stats.will) / 30));
+			const maxHp = Math.min(pointsForHpFocus, Math.floor(4 + (this.levelStats[i].constitution * 2 + this.levelStats[i].will) / 30));
 
 			hp += this.hps[i].component.getValue();
 			this.hps[i].tooltip(hp);
@@ -323,6 +326,8 @@ class TalentPicker extends Modal
 	picked: Talent[];
 	level: number;
 
+	stats: any;
+
 	freeMode: boolean = false;
 
 	res: any;
@@ -352,7 +357,7 @@ class TalentPicker extends Modal
 			this.button.setDisabled(true);
 		});
 	}
-	async pick(picked: Talent[], level: number): string
+	async pick(picked: Talent[], level: number, stats: any): string
 	{
 		return new Promise((res, rej) => {
 			this.res = res;
@@ -360,6 +365,7 @@ class TalentPicker extends Modal
 
 			this.picked = picked;
 			this.level = level;
+			this.stats = stats;
 			this.open();
 
 			this.content.empty();
@@ -390,7 +396,7 @@ class TalentPicker extends Modal
 		{
 			if(childContent instanceof TalentMetadata)
 			{
-				if((this.freeMode || TalentPicker.available(childContent, this.picked, this.level)) && childTitle.toLowerCase().includes(this.filter))
+				if((this.freeMode || TalentPicker.available(childContent, this.picked, this.level, this.stats)) && childTitle.toLowerCase().includes(this.filter))
 				{
 					this.addTalent(childTitle, childContent, div);
 					count++;
@@ -425,7 +431,7 @@ class TalentPicker extends Modal
 		});
 	}
 
-	static available(talent: TalentMetadata, picked: Talent[], level: number): boolean
+	static available(talent: TalentMetadata, picked: Talent[], level: number, stats: any): boolean
 	{
 		if(talent.level && talent.level > level)
 			return false;
@@ -438,6 +444,9 @@ class TalentPicker extends Modal
 		else
 		{
 			if(TalentMetadata.includes(picked, talent.talent, true) && !talent.stackable)
+				return false;
+
+			if(talent.stats.length && talent.stats.some(e => stats[e.stat] < e.value))
 				return false;
 
 			if(talent.dependencies && talent.dependencies.length > 0 && !TalentMetadata.some(talent.dependencies, picked, true))

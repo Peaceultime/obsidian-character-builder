@@ -18,7 +18,7 @@ export const StatBlock = {
 } as const;
 export const StatBlockNames = {
 	strength: "Force",
-	dexterity: "Dextérité",
+	dexterity: "Agilité",
 	constitution: "Constitution",
 	intelligence: "Intelligence",
 	perception: "Perception",
@@ -54,6 +54,11 @@ export interface Metadata {
 
 	flavoring: string;
 }
+interface TalentStat
+{
+	stat: string;
+	value: number;
+}
 
 export class TalentMetadata
 {
@@ -65,6 +70,7 @@ export class TalentMetadata
 	options: Talent[] | string[]; //Dans le futur, il y aura une distinction entre sous talent et option de talent (diférence entre Style de combat ou Faveur de pacte et Metamagie par exemple)
 	
 	dependencies: Talent[];
+	stats: TalentStat[]
 	blocking: Talent[]; // TODO
 	level: number;
 	stackable: boolean;
@@ -85,9 +91,18 @@ export class TalentMetadata
 		this.valid = true;
 		this.talent = { name: file.basename, subname: undefined };
 		this.file = file;
+		this.stats = [];
 		this.metadata = metadata;
 		this.content = content;
-		this.dependencies = /[Pp]r[eé]requis ?:? ? ?:? ?(.+)[\n\,]/g.test(this.content) ? this.metadata?.links?.map(e => TalentMetadata.fromLink(e.link)) : undefined;
+		this.dependencies = /[Pp]r[eé]requis ?:? ? ?:? ?(.+)[\n\,]/g.test(this.content) ? this.metadata?.links?.filter(e => !this.metadata.headings[1] || e.position.start.offset < this.metadata.headings[1].position.start.offset).map(e => TalentMetadata.fromLink(e.link)) : undefined;
+
+		for(const stat of Object.keys(StatBlockNames))
+		{
+			const match = new RegExp(`${StatBlockNames[stat]}.*> ?(\\\d{1,3})`, "gi").exec(this.content)
+			if(match !== null)
+				this.stats.push({stat: stat, value: match[1]});
+		}
+
 		this.heading = this.metadata.headings[0].heading;
 		this.stackable = /(?<!non )[Cc]umulable/.test(this.content);
 		this.level = Infinity;
