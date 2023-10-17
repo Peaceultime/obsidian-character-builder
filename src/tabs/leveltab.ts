@@ -179,6 +179,9 @@ export class LevelTab extends Tab
 	}
 	computeStats()
 	{
+		if(!this.levelStats.length)
+			return;
+
 		for(let stat of Object.keys(this.metadata.statBlock))
 		{
 			this.levelStats[0][stat] = this.metadata.statBlock[stat].initial + this.metadata.statBlock[stat].bonus;	
@@ -446,7 +449,7 @@ class TalentPicker extends Modal
 			if(TalentMetadata.includes(picked, talent.talent, true) && !talent.stackable)
 				return false;
 
-			if(talent.stats.length && talent.stats.some(e => stats[e.stat] < e.value))
+			if(talent.stats.length && talent.stats.every(e => stats[e.stat] < e.value))
 				return false;
 
 			if(talent.dependencies && talent.dependencies.length > 0 && !TalentMetadata.some(talent.dependencies, picked, true))
