@@ -13,6 +13,7 @@ export interface CharacterBuilderSettings {
 	maxInitialStat: number;
 	minStat: number;
 	statAmount: number;
+	pointsForHpFocus: number;
 
 	substatAmount: number;
 }
@@ -41,6 +42,7 @@ export const DEFAULT_SETTINGS: SaveData = {
 		maxInitialStat: 45,
 		minStat: 15,
 		statAmount: 245,
+		pointsForHpFocus: 13,
 
 		substatAmount: 62,
 	}
@@ -76,6 +78,7 @@ export class CharacterBuilderSettingTab extends PluginSettingTab {
 		new TextField(containerEl, "Min de points par stat", false).link(this.plugin.savedData.settings, "minStat").onChange(value => this.dirty = true);
 		new TextField(containerEl, "Max de point par stat à la création", false).link(this.plugin.savedData.settings, "maxInitialStat").onChange(value => this.dirty = true);
 		new TextField(containerEl, "Points total disponible à la création", false).link(this.plugin.savedData.settings, "statAmount").onChange(value => this.dirty = true);
+		new TextField(containerEl, "Points a répartir entre PV et focus", false).link(this.plugin.savedData.settings, "pointsForHpFocus").onChange(value => this.dirty = true);
 
 		containerEl.createEl('h2', {text: 'Stats secondaires'});
 

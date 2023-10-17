@@ -109,9 +109,7 @@ export interface StatBlockOptions
 {
 	statAmount?: number;
 
-	hasNormalRow?: boolean;
-	hasHighRow?: boolean;
-	hasExtremeRow?: boolean;
+	hasTotalRow?: boolean;
 	hasValuePicker?: boolean;
 	hasRacialValuePicker?: boolean;
 	hasEvenLevelPicker?: number;
@@ -130,9 +128,7 @@ export class StatBlockElement
 	pickerElmts: HTMLStatELement[] = [];
 	racePickerElmts: Dropdown[] = [];
 	dropdownGroup: RacialDropdownGroup;
-	normalElmts: HTMLELement[] = [];
-	highElmts: HTMLELement[] = [];
-	extremeElmts: HTMLELement[] = [];
+	totalElmts: HTMLELement[] = [];
 	evenLevelPickerElmts: ToggleComponent[] = [];
 
 	remaining: number;
@@ -201,12 +197,8 @@ export class StatBlockElement
 					this.update(); 
 					this.cb && this.cb();
 				}));
-			if(options?.hasNormalRow)
-				this.normalElmts.push(this.bufferElmt.createEl("i"));
-			if(options?.hasHighRow)
-				this.highElmts.push(this.bufferElmt.createEl("i"));
-			if(options?.hasExtremeRow)
-				this.extremeElmts.push(this.bufferElmt.createEl("i"));
+			if(options?.hasTotalRow)
+				this.totalElmts.push(this.bufferElmt.createEl("i"));
 		}
 
 		if(options?.hasValuePicker)
@@ -215,12 +207,8 @@ export class StatBlockElement
 			this.row("Bonus raciaux", this.racePickerElmts.map(e => e.selectEl));
 		if(options?.hasEvenLevelPicker)
 			this.row("Bonus de niveau", this.evenLevelPickerElmts.map(e => e.toggleEl));
-		if(options?.hasNormalRow)
-			this.row("Réussite normale", this.normalElmts);
-		if(options?.hasHighRow)
-			this.row("Réussite haute", this.highElmts);
-		if(options?.hasExtremeRow)
-			this.row("Réussite extreme", this.extremeElmts);
+		if(options?.hasTotalRow)
+			this.row("Total", this.totalElmts);
 
 		if(options?.hasRacialValuePicker && metadata.race.name)
 		{
@@ -273,12 +261,8 @@ export class StatBlockElement
 					this.evenLevelPickerElmts[i]?.setDisabled(buffedStat !== stats[i]);
 			}
 
-			if(this.options?.hasNormalRow && this.normalElmts[i])
-				this.normalElmts[i].innerHTML = Math.floor(stat.initial + stat.bonus + levelBonus);
-			if(this.options?.hasHighRow && this.highElmts[i])
-				this.highElmts[i].innerHTML = Math.floor((stat.initial + stat.bonus + levelBonus) / 2);
-			if(this.options?.hasExtremeRow && this.extremeElmts[i])
-				this.extremeElmts[i].innerHTML = Math.floor((stat.initial + stat.bonus + levelBonus) / 5);
+			if(this.options?.hasTotalRow && this.totalElmts[i])
+				this.totalElmts[i].innerHTML = Math.floor(stat.initial + stat.bonus + levelBonus);
 		}
 
 		if(this.options?.showRemaining && this.remainingElmt)
@@ -455,9 +439,7 @@ export interface SubstatsOptions
 	statAmount?: number;
 
 	hasWholeBonus?: boolean;
-	hasNormal?: boolean;
-	hasHigh?: boolean;
-	hasExtreme?: boolean;
+	hasTotal?: boolean;
 	hasStatPicker?: boolean;
 	hasValuePicker?: boolean;
 
@@ -473,9 +455,7 @@ export class SubstatPicker
 	statElmts: HTMLElement[] = [];
 	valueElmts: HTMLStatELement[] = [];
 	wholeBonusElmts: HTMLELement[] = [];
-	normalElmts: HTMLELement[] = [];
-	highElmts: HTMLELement[] = [];
-	extremeElmts: HTMLELement[] = [];
+	totalElmts: HTMLELement[] = [];
 
 	remaining: number;
 	remainingElmt: HTMLElement;
@@ -575,7 +555,7 @@ export class SubstatPicker
 			}
 			else if(this.options?.hasValuePicker && this.options?.level === 1)
 			{
-				this.valueElmts[i]?.disable(false)?.limit(0, 20);
+				this.valueElmts[i]?.disable(false)?.limit(0, 10);
 			}
 			else if(this.options?.hasValuePicker && previousLevelSubstat >= this.options.level * 2)
 			{
@@ -588,12 +568,8 @@ export class SubstatPicker
 
 			if(this.options?.hasWholeBonus && this.wholeBonusElmts[i])
 				this.wholeBonusElmts[i].innerHTML = `+ ${substatValue}`;
-			if(this.options?.hasNormal && this.normalElmts[i])
-				this.normalElmts[i].innerHTML = statValue + substatValue;
-			if(this.options?.hasHigh && this.highElmts[i])
-				this.highElmts[i].innerHTML = Math.floor((statValue + substatValue) / 2);
-			if(this.options?.hasExtreme && this.extremeElmts[i])
-				this.extremeElmts[i].innerHTML = Math.floor((statValue + substatValue) / 5);
+			if(this.options?.hasTotal && this.totalElmts[i])
+				this.totalElmts[i].innerHTML = statValue + substatValue;
 		}
 
 		if(this.options?.showRemaining && this.remainingElmt)
@@ -614,7 +590,7 @@ export class SubstatPicker
 		}
 		if(this.options?.hasValuePicker)
 		{
-			const valueElmt = new HTMLStatElement(container, 0, 20).change((oldVal, newVal) => {
+			const valueElmt = new HTMLStatElement(container, 0, 10).change((oldVal, newVal) => {
 					if(!this.metadata.freeMode)
 					{
 						if(oldVal === newVal)
@@ -638,24 +614,16 @@ export class SubstatPicker
 
 			this.valueElmts.push(valueElmt);
 		}
-		if(this.options?.hasWholeBonus || this.options?.hasNormal || this.options?.hasHigh || this.options?.hasExtreme)
+		if(this.options?.hasWholeBonus || this.options?.hasTotal || this.options?.hasHigh || this.options?.hasExtreme)
 		{
 			container.createDiv(undefined, div => {
 				if(this.options?.hasWholeBonus)
 				{
 					this.wholeBonusElmts.push(container.createEl("i"));
 				}
-				if(this.options?.hasNormal)
+				if(this.options?.hasTotal)
 				{
-					this.normalElmts.push(container.createEl("i"));
-				}
-				if(this.options?.hasHigh)
-				{
-					this.highElmts.push(container.createEl("i"));
-				}
-				if(this.options?.hasExtreme)
-				{
-					this.extremeElmts.push(container.createEl("i"));
+					this.totalElmts.push(container.createEl("i"));
 				}
 			});
 		}
@@ -677,17 +645,9 @@ export class SubstatPicker
 		{
 			this.wholeBonusElmts.splice(idx, 1);
 		}
-		if(this.options?.hasNormal)
+		if(this.options?.hasTotal)
 		{
-			this.normalElmts.splice(idx, 1);
-		}
-		if(this.options?.hasHigh)
-		{
-			this.highElmts.splice(idx, 1);
-		}
-		if(this.options?.hasExtreme)
-		{
-			this.extremeElmts.splice(idx, 1);
+			this.totalElmts.splice(idx, 1);
 		}
 
 		this.remaining += this.metadata.freeMode ? 0 : this.levelSubstats[substat];

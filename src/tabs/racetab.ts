@@ -20,7 +20,7 @@ export class RaceTab extends Tab
 		const feature = new Dropdown(splitElmt, "Bonus racial").source(metadata, `races/{setting}/content/{race/name}/features`).link(metadata.race, "feature").required(this);
 
 		const statBlock = new StatBlockElement(this.content, metadata, {
-			hasNormalRow: true,
+			hasTotalRow: true,
 			hasRacialValuePicker: true
 		});
 

@@ -41,8 +41,8 @@ export class LevelTab extends Tab
 				talents: [],
 				buffedStat: undefined,
 				buffedSubstats: {},
-				hp: 13,
-				focus: 0,
+				hp: 0,
+				focus: Cache.cache("settings/pointsForHpFocus"),
 				flavoring: undefined,
 			};
 			metadata.levels.push(level);
@@ -57,8 +57,8 @@ export class LevelTab extends Tab
 				talents: [],
 				buffedStat: undefined,
 				buffedSubstats: {},
-				hp: 13,
-				focus: 0,
+				hp: 0,
+				focus: Cache.cache("settings/pointsForHpFocus"),
 				flavoring: undefined,
 			});
 		}
@@ -74,13 +74,24 @@ export class LevelTab extends Tab
 	{
 		const grpEl = group(this.content, `Niveau ${level.level}`, collapsed);
 
+		const stats = {};
+		for(let stat of Object.keys(this.metadata.statBlock))
+		{
+			stats[stat] = this.metadata.statBlock[stat].initial + this.metadata.statBlock[stat].bonus;
+			for(let j = 1; j <= level; j++)
+				stats[stat] += this.metadata.levels.find(e => e.level === j)?.buffedStat === stat ? 3 : 0;
+		}
+
 		grpEl.createDiv("character-builder-splitter-container", split => {
 			split.createDiv(undefined, div => {
-				const hp = new Slider(div, "PV", false).range(0, 13, 1).link(level, "hp");
-				const focus = new Slider(div, "Focus", false).range(0, 13, 1).link(level, "focus").desc("13 points à repartir entre PV et focus.");
+				const pointsForHpFocus = Cache.cache("settings/pointsForHpFocus");
+				const maxHp = Math.min(pointsForHpFocus, Math.floor(4 + (stats.constitution * 2 + stats.will) / 30));
 
-				hp.onChange((value) => { focus.value(13 - value); this.updateSliderTooltips(); });
-				focus.onChange((value) => { hp.value(13 - value); this.updateSliderTooltips(); });
+				const hp = new Slider(div, "PV", false).range(0, maxHp, 1).link(level, "hp");
+				const focus = new Slider(div, "Focus", false).range(pointsForHpFocus - maxHp, pointsForHpFocus, 1).link(level, "focus").desc(pointsForHpFocus + " points à repartir entre PV et focus.");
+
+				hp.onChange((value) => { focus.value(pointsForHpFocus - value); this.updateSliderTooltips(); });
+				focus.onChange((value) => { hp.value(pointsForHpFocus - value); this.updateSliderTooltips(); });
 
 				this.hps.push(hp);
 				this.focuses.push(focus);
@@ -89,8 +100,8 @@ export class LevelTab extends Tab
 				{
 					this.statblocks.push(new StatBlockElement(div, this.metadata, {
 						hasEvenLevelPicker: level.level,
-						hasNormalRow: true,
-						maxStat: Cache.cache("settings").maxStat,
+						hasTotalRow: true,
+						maxStat: Cache.cache("settings/maxStat"),
 					}).onChange(() => this.update()));
 				}
 			})
@@ -111,9 +122,7 @@ export class LevelTab extends Tab
 					statAmount: level.level === 1 ? 62 : 22,
 
 					hasWholeBonus: true,
-					hasNormal: true,
-					hasHigh: true,
-					hasExtreme: true,
+					hasTotal: true,
 					hasStatPicker: true,
 					hasValuePicker: true,
 
@@ -186,13 +195,28 @@ export class LevelTab extends Tab
 	updateSliderTooltips()
 	{
 		let hp = Cache.cache(`races/${this.metadata.setting}/content/${this.metadata.race.name}/health`), focus = 0;
+
+		const stats = {};
+		for(let stat of Object.keys(this.metadata.statBlock))
+		{
+			stats[stat] = this.metadata.statBlock[stat].initial + this.metadata.statBlock[stat].bonus;
+		}
+
 		for(let i = 0; i < this.hps.length; i++)
 		{
+			for(let stat of Object.keys(this.metadata.statBlock))
+				stats[stat] += this.metadata.levels.find(e => e.level === i + 1)?.buffedStat === stat ? 3 : 0;
+
+			const pointsForHpFocus = Cache.cache("settings/pointsForHpFocus");
+			const maxHp = Math.min(pointsForHpFocus, Math.floor(4 + (stats.constitution * 2 + stats.will) / 30));
+
 			hp += this.hps[i].component.getValue();
 			this.hps[i].tooltip(hp);
+			this.hps[i].range(0, maxHp, 1);
 
 			focus += this.focuses[i].component.getValue();
 			this.focuses[i].tooltip(focus);
+			this.focuses[i].range(pointsForHpFocus - maxHp, pointsForHpFocus, 1);
 		}
 	}
 }

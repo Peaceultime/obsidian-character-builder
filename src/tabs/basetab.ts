@@ -24,8 +24,6 @@ export class BaseTab extends Tab
 		new StatBlockElement(splitContainer, metadata, {
 			statAmount: metadata.freeMode ? 10000 : undefined,
 			maxStat: metadata.freeMode ? 1000 : undefined,
-			hasHighRow: true,
-			hasExtremeRow: true,
 			hasValuePicker: true,
 
 			showRemaining: !metadata.freeMode,
