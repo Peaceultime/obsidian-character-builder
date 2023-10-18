@@ -130,7 +130,7 @@ export class LevelTab extends Tab
 				}).onChange(() => this.update()));
 			});
 		});
-		new MarkdownArea(group(grpEl, `Flavoring`, false)).link(level, `flavoring`);
+		new MarkdownArea(group(grpEl, `Flavoring`, true)).link(level, `flavoring`);
 
 		this.update();
 	}
@@ -146,7 +146,7 @@ export class LevelTab extends Tab
 			for(let j = 0; j < currentLevel.talents.length; j++)
 			{
 				const tal = currentLevel.talents[j];
-				if(!TalentPicker.available(Cache.cache(`talents/registry/${tal.name}`), currentTalents, currentLevel, currentStats))
+				if(!TalentPicker.available(Cache.cache(`talents/registry/${tal.name}`), currentTalents, currentLevel, this.levelStats))
 				{
 					currentLevel.talents.splice(j, 1);
 					this.talentLists[i].remove(tal, true);
@@ -166,7 +166,7 @@ export class LevelTab extends Tab
 	{
 		const metadata = this.request("metadata");
 
-		if(!this.metadata.freeMode && level.level === 1 && level.talents.length >= (6 - metadata.armor / 2))
+		if(!this.metadata.freeMode && level.level === 1 && level.talents.length >= (6 - metadata.armor))
 			return new Notice("Vous avez déjà choisi tous vos talents pour ce niveau");
 		else if(!this.metadata.freeMode && level.level > 1 && level.talents.length >= 1)
 			return new Notice("Vous avez déjà choisi tous vos talents pour ce niveau");
