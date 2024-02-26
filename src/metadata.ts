@@ -94,7 +94,7 @@ export class TalentMetadata
 		this.stats = [];
 		this.metadata = metadata;
 		this.content = content;
-		this.dependencies = /[Pp]r[eé]requis ?:? ? ?:? ?(.+)[\n\,]/g.test(this.content) ? this.metadata?.links?.filter(e => !this.metadata.sections[1] || e.position.start.offset < this.metadata.sections[1].position.start.offset).map(e => TalentMetadata.fromLink(e.link)) : undefined;
+		this.dependencies = /[Pp]r[eé]requis ?:? ? ?:? ?(.+)\r?[\n\,]/g.test(this.content) ? this.metadata?.links?.filter(e => !this.metadata.sections[1] || e.position.start.offset < this.metadata.sections[1].position.start.offset).map(e => TalentMetadata.fromLink(e.link)) : undefined;
 
 		for(const stat of Object.keys(StatBlockNames))
 		{
@@ -113,13 +113,14 @@ export class TalentMetadata
 
 		if(this.level === Infinity || this.file.parent.name.includes("Talent de base")) this.level = 1;
 
-		this.options = hierarchy && hierarchy[0] && hierarchy[0]?.hierarchy?.filter(e => e.level === 2)?.map(e => { return { name: file.basename, subname: e.heading.replace(/[\(\)\*]/g, "")}; } ) || undefined;
+		this.options = (hierarchy && hierarchy[0] && hierarchy[0].hierarchy ? hierarchy[0].hierarchy : hierarchy)?.filter(e => e.level === 2)?.map(e => { return { name: file.basename, subname: e.heading.replace(/[\(\)\*]/g, "")}; } ) || undefined;
 		if(this.options && this.options.length === 0)
 			this.options = undefined;
 	}
 	static fromLink(link: string): Talent
 	{
-		return { name: link.substring(0, link.indexOf("#") === -1 ? link.length : link.indexOf("#")), subname: link.indexOf("#") !== -1 ? link.substring(link.indexOf("#") + 1) : undefined };
+		link = link.replace(/(.+)\/(.+)\.md(#.+)?/g, "$2$3");
+		return { name: link.substring(link.lastIndexOf("/") === -1 ? 0 : link.lastIndexOf("/") + 1, link.indexOf("#") === -1 ? link.length : link.indexOf("#")), subname: link.indexOf("#") !== -1 ? link.substring(link.indexOf("#") + 1) : undefined };
 	}
 	static compare(src: Talent, target: Talent, nameOnly: boolean = false): boolean
 	{
@@ -186,10 +187,18 @@ export interface Talent
 {
 	name: string;
 	subname: string //Pour les talents comme Sorts#Instinct
+	readonly?: boolean;
 }
-export interface Collection
+export interface RaceCollection
 {
-	[name: string]: string;
+	[name: string]: RaceFeature;
+}
+export interface RaceFeature
+{
+	content: string;
+	talents?: Talent[];
+	stat?: string;
+	statValue?: number;
 }
 export class RaceMetadata
 {
@@ -199,8 +208,8 @@ export class RaceMetadata
 
 	health: number;
 
-	subraces: Collection;
-	features: Collection;
+	subraces: RaceCollection;
+	features: RaceCollection;
 
 	metadata: any;
 	content: string;
@@ -218,7 +227,8 @@ export class RaceMetadata
 		const globalBonusIdx = metadata.headings.findIndex(e => e.heading.toUpperCase() === "BONUS GLOBAUX");
 		this.content = content.substring(metadata.headings[0].position.start.offset, metadata.headings[globalBonusIdx + 1].position.start.offset - 1);
 		this.subraces = metadata.headings.slice(0, metadata.headings.findIndex(e => e.heading.replaceAll("*", "").toUpperCase().startsWith("BONUS RACIA") || e.heading.replaceAll("*", "").toUpperCase().startsWith("OPTION"))).map((e, i) => i).slice(globalBonusIdx + 2).map(e => metadata.headings[e].heading).reduce((p, v) => {
-			p[v] = contentOfHeading(metadata, content, v, true); return p;
+			p[v] = this.buildFeature(content, v);
+			return p;
 		}, {});
 		const idx = metadata.headings.findIndex(e => e.heading.replaceAll("*", "").toUpperCase().startsWith("BONUS RACIA") || e.heading.replaceAll("*", "").toUpperCase().startsWith("OPTION"));
 
@@ -279,6 +289,38 @@ export class RaceMetadata
 				}
 				bonusesMatch = bonusesMatch.replaceAll(stats[i].toLowerCase(), "");
 			}
+		}
+	}
+	buildFeature(content: string, header: string): RaceFeature
+	{
+		const talents = [];
+
+		const head = this.metadata.headings.find(e => e.heading === header);
+		const start = head.position.end.offset;
+		let end;
+		
+		for(let i = 0; i < this.metadata.sections.length; i++)
+		{
+			const sec = this.metadata.sections[i];
+			if(start < sec.position.start.offset && sec.type === "heading")
+				break;
+
+			if(start < sec.position.start.offset)
+				end = sec.position.end.offset;
+		}
+		if(this.metadata.hasOwnProperty("links"))
+		{
+			for(let i = 0; i < this.metadata.links.length; i++)
+			{
+				const link = this.metadata.links[i];
+				if(link.position.start.offset > start && link.position.end.offset < end)
+					talents.push(TalentMetadata.fromLink(link.link));
+			}
+			talents.forEach(e => e.readonly = true);
+		}
+		return {
+			content: content.substring(start, end),
+			talents: talents,
 		}
 	}
 }

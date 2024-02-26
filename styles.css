@@ -533,6 +533,11 @@ If your plugin does not need CSS, delete this file.
     align-items: center;
 }
 
+.character-builder-talent.talent-readonly {
+    padding: 0.1em 0.75em;
+    background-color: var(--background-modifier-border-focus);
+}
+
 span.character-builder-talent-remove, span.character-builder-substat-remove {
     width: 24px;
     height: 24px;

@@ -106,7 +106,10 @@ export class LevelTab extends Tab
 			})
 		
 			split.createDiv(undefined, div => {
-				const talentList = new TalentList(app, div, level.talents);
+				const talentList = new TalentList(app, div, level.level === 1 ? [...level.talents, 
+					...Cache.cache(`races/${this.metadata.setting}/content/${this.metadata.race.name}/subraces/${this.metadata.race.subname}/talents`) ?? [], 
+					...Cache.cache(`races/${this.metadata.setting}/content/${this.metadata.race.name}/features/${this.metadata.race.feature}/talents`) ?? []
+				] : level.talents);
 				this.talentLists.push(talentList);
 				talentList.onRemove(async (talent: Talent) => {
 					try {
@@ -172,7 +175,7 @@ export class LevelTab extends Tab
 		else if(!this.metadata.freeMode && level.level > 1 && level.talents.length >= 1)
 			return new Notice("Vous avez déjà choisi tous vos talents pour ce niveau");
 
-		this.talentPicker.pick(this.talents, level.level, this.levelStats[level.level - 1]).then(talent => {
+		this.talentPicker.pick(this.talents, level.level, this.levelStats[level.level - 1], this.metadata).then(talent => {
 			this.talents.push(talent);
 			level.talents.push(talent);
 			talentList.add(talent);
@@ -259,7 +262,7 @@ class TalentList
 	}
 	add(talent: Talent): void
 	{
-		const elmt = this.content.createDiv({ cls: "character-builder-talent", text: TalentMetadata.text(talent) }, (div) => div.createSpan("character-builder-talent-remove").addEventListener("click", () => this.remove(talent)));
+		const elmt = this.content.createDiv({ cls: talent.readonly ? "character-builder-talent talent-readonly" : "character-builder-talent", text: TalentMetadata.text(talent) }, (div) => talent.readonly ? undefined : div.createSpan("character-builder-talent-remove").addEventListener("click", () => this.remove(talent)));
 		elmt.addEventListener("mouseover", () => this.onTalentHover(talent));
 
 		this.talents.push(talent);
@@ -361,13 +364,16 @@ class TalentPicker extends Modal
 			this.button.setDisabled(true);
 		});
 	}
-	async pick(picked: Talent[], level: number, stats: any): string
+	async pick(picked: Talent[], level: number, stats: any, metadata: Metadata): string
 	{
 		return new Promise((res, rej) => {
 			this.res = res;
 			this.rej = rej;
 
-			this.picked = picked;
+			this.picked = [...picked, 
+				...Cache.cache(`races/${metadata.setting}/content/${metadata.race.name}/subraces/${metadata.race.subname}/talents`) ?? [], 
+				...Cache.cache(`races/${metadata.setting}/content/${metadata.race.name}/features/${metadata.race.feature}/talents`) ?? []
+			];
 			this.level = level;
 			this.stats = stats;
 			this.open();
@@ -437,25 +443,17 @@ class TalentPicker extends Modal
 
 	static available(talent: TalentMetadata, picked: Talent[], level: number, stats: any): boolean
 	{
-		if(talent.level && talent.level > level)
+		if(talent.level && talent.level > level) //Level requirement
 			return false;
 
-		if(!picked || picked.length === 0)
-		{
-			if(talent.dependencies && talent.dependencies.length > 0)
-				return false;
-		}
-		else
-		{
-			if(TalentMetadata.includes(picked, talent.talent, true) && !talent.stackable)
-				return false;
+		if(TalentMetadata.includes(picked, talent.talent, true) && !talent.stackable) //Already picked requirement
+			return false;
 
-			if(talent.stats.length && talent.stats.every(e => stats[e.stat] < e.value))
-				return false;
+		if(talent.stats.length && talent.stats.every(e => stats[e.stat] < e.value)) //Stat requirement
+			return false;
 
-			if(talent.dependencies && talent.dependencies.length > 0 && !TalentMetadata.some(talent.dependencies, picked, true))
-				return false;
-		}
+		if(talent.dependencies && talent.dependencies.length > 0 && !TalentMetadata.some(talent.dependencies, picked, true)) //Dependencies requirement
+			return false;
 
 		return true;
 	}
@@ -466,13 +464,13 @@ class TalentPicker extends Modal
 		this.content.empty();
 
 		const editor = this.app.embedRegistry.getEmbedCreator(talent.file)({
-		    app: this.app,
-		    linktext: null,
-		    sourcePath: null,
-		    containerEl: this.content,
-		    displayMode: true,
-		    showInline: false,
-		    depth: 0
+			app: this.app,
+			linktext: null,
+			sourcePath: null,
+			containerEl: this.content,
+			displayMode: true,
+			showInline: false,
+			depth: 0
 		}, talent.file);
 		editor.loadFile();
 		editor.inlineTitleEl?.remove();
