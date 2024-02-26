@@ -115,7 +115,7 @@ function substats(value: Substats, statBlock: StatBlock): string
 	const names = Object.keys(value);
 	for(let i = 0; i < names.length; i++)
 	{
-		const s = SubstatsList.find(e => names[i].startsWith(e.name)).stat;
+		const s = Cache.cache("settings/substats").find(e => names[i].startsWith(e.name)).stat;
 		content += `- **${names[i]}**: +${stat(value[names[i]], 1)} (${stat(value[names[i]] + statBlock[s].initial + statBlock[s].bonus, 1)})\n`;
 	}
 	return content;

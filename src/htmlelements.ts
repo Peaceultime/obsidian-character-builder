@@ -1,8 +1,7 @@
 import { DropdownComponent, ToggleComponent, ButtonComponent, TextComponent, PopoverSuggest } from 'obsidian';
 import { CharacterBuilderCache as Cache } from 'src/cache.ts';
-import { Stat, StatBlock, StatBlockNames } from 'src/metadata.ts';
+import { Stat, SubstatMetadata, StatBlock, StatBlockNames } from 'src/metadata.ts';
 import { Dropdown } from 'src/components.ts';
-import Substats from 'src/substats.js';
 
 export class HTMLStatElement {
 	min: number;
@@ -478,7 +477,7 @@ export class SubstatPicker
 					{
 						div2.createDiv(undefined, div3 => {
 							const suggest = new SuggestComponent(div3).onSuggest(value => {
-								return Substats.flatMap(e => e.choices?.map(f => `${e.name}#${f}`) ?? e.name).filter(e => e.toLowerCase().includes(value.toLowerCase()) && !this.substats.includes(e))
+								return settings.substats.map(e => e.name).filter(e => e.toLowerCase().includes(value.toLowerCase()) && !this.substats.includes(e))
 							});
 							suggest.onSelect((v) => { this.addItem(v); suggest.setValue(""); });
 							if(options?.level !== 1)
@@ -535,7 +534,7 @@ export class SubstatPicker
 		for(let i = 0; i < this.substats.length; i++)
 		{
 			const substat = this.substats[i];
-			const stat = Substats.find(e => substat.startsWith(e.name)).stat;
+			const stat = Cache.cache('settings/substats').find(e => substat.startsWith(e.name)).stat;
 
 			let statValue = this.metadata.statBlock[stat].initial + this.metadata.statBlock[stat].bonus, substatValue = 0;
 			for(let j = 1; j <= this.options?.level; j++)

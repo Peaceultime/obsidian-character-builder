@@ -1,6 +1,7 @@
 import { PluginSettingTab, Setting } from 'obsidian';
 import { Dropdown, TextField, SuggestField } from 'src/components.ts';
 import { CharacterBuilderCache as Cache } from 'src/cache.ts';
+import { StatBlockNames } from 'src/metadata.ts';
 
 export interface CharacterBuilderSettings {
 	charactersFolder: string;
@@ -17,6 +18,8 @@ export interface CharacterBuilderSettings {
 
 	substatFirstLevel: number;
 	substatPerLevel: number;
+
+	substats: Substat[];
 }
 
 export interface ViewSaveData {
@@ -47,6 +50,8 @@ export const DEFAULT_SETTINGS: SaveData = {
 
 		substatFirstLevel: 62,
 		substatPerLevel: 22,
+
+		substats: [],
 	}
 };
 
@@ -86,12 +91,28 @@ export class CharacterBuilderSettingTab extends PluginSettingTab {
 
 		new TextField(containerEl, "Points disponible au niveau 1", false).link(this.plugin.savedData.settings, "substatFirstLevel").onChange(value => this.dirty = true);
 		new TextField(containerEl, "Points disponible par niveau", false).link(this.plugin.savedData.settings, "substatPerLevel").onChange(value => this.dirty = true);
+
+		new Setting(containerEl).setHeading().setName("Editer les stats secondaires").addExtraButton((btn) => btn.setIcon("plus-circle").onClick(() => { this.plugin.savedData.settings.substats.push({}); this.display(); }));
+
+		containerEl.createEl('div', {cls: 'character-builder-grid grid-2'}, (div) => {
+			const subs = this.plugin.savedData.settings.substats;
+			for(let i = 0; i < subs.length; i++)
+			{
+				new Setting(div)
+				.addText((text) => text.setValue(subs[i].name).onChange(el => { subs[i].name = text.getValue(); this.dirty = true; }))
+				.addDropdown((dd) => dd.addOptions(StatBlockNames).setValue(subs[i].stat).onChange(el => { subs[i].stat = dd.getValue(); this.dirty = true; }))
+				.addExtraButton((btn) => btn.setIcon("trash-2").onClick(() => { subs.splice(i, 1); this.dirty = true; this.display(); }))
+				.addExtraButton((btn) => btn.setDisabled(i === 0).setIcon("arrow-up").onClick(() => { const tmp = subs[i]; subs[i] = subs[i - 1]; subs[i - 1] = tmp; this.dirty = true; this.display(); }))
+				.addExtraButton((btn) => btn.setDisabled(i === subs.length - 1).setIcon("arrow-down").onClick(() => { const tmp = subs[i]; subs[i] = subs[i + 1]; subs[i + 1] = tmp; this.dirty = true; this.display(); }));
+			}
+		});
 	}
 
 	hide()
 	{
 		if(this.dirty)
 		{
+			this.plugin.savedData.settings.substats.filter(e => e.name && e.stat);
 			this.plugin.savePluginData();
 			this.plugin.settings = Cache.cache("settings", this.plugin.savedData.settings);
 		}

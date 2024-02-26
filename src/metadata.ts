@@ -3,6 +3,11 @@ import { CharacterBuilderCache as Cache } from 'src/cache.ts';
 export interface Substats {
 	[name: string]: number;
 }
+export interface SubstatMetadata {
+	name: string;
+	stat: string;
+	choices?: string[];
+}
 export const Stat = {
 	initial: 0,
 	bonus: 0,
