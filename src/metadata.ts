@@ -83,10 +83,10 @@ export class TalentMetadata
 	constructor(file: TFile, content: string, app: App)
 	{
 		const metadata = app.metadataCache.getFileCache(file);
-		if(!metadata.hasOwnProperty("headings") || !metadata.hasOwnProperty("sections"))
+		if(!metadata.hasOwnProperty("sections"))
 			return;
 
-		const hierarchy = headingHierarchy(metadata.headings);
+		const hierarchy = headingHierarchy(metadata.headings ?? []);
 
 		this.valid = true;
 		this.talent = { name: file.basename, subname: undefined };
@@ -94,7 +94,7 @@ export class TalentMetadata
 		this.stats = [];
 		this.metadata = metadata;
 		this.content = content;
-		this.dependencies = /[Pp]r[eé]requis ?:? ? ?:? ?(.+)[\n\,]/g.test(this.content) ? this.metadata?.links?.filter(e => !this.metadata.headings[1] || e.position.start.offset < this.metadata.headings[1].position.start.offset).map(e => TalentMetadata.fromLink(e.link)) : undefined;
+		this.dependencies = /[Pp]r[eé]requis ?:? ? ?:? ?(.+)[\n\,]/g.test(this.content) ? this.metadata?.links?.filter(e => !this.metadata.sections[1] || e.position.start.offset < this.metadata.sections[1].position.start.offset).map(e => TalentMetadata.fromLink(e.link)) : undefined;
 
 		for(const stat of Object.keys(StatBlockNames))
 		{
@@ -103,7 +103,7 @@ export class TalentMetadata
 				this.stats.push({stat: stat, value: match[1]});
 		}
 
-		this.heading = this.metadata.headings[0].heading;
+		this.heading = this.metadata?.headings ? this.metadata?.headings[0]?.heading : file.basename;
 		this.stackable = /(?<!non )[Cc]umulable/.test(this.content);
 		this.level = Infinity;
 

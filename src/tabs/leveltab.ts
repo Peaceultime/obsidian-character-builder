@@ -66,9 +66,10 @@ export class LevelTab extends Tab
 				focus: Cache.cache("settings/pointsForHpFocus"),
 				flavoring: undefined,
 			});
+			this.levelStats.push({});
 		}
 		this.talentPicker = new TalentPicker(this.container.app);
-
+		
 		this.computeStats();
 		for(let i = 0; i < this.levels.length; i++)
 		{
