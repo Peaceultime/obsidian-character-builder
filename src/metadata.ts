@@ -253,10 +253,10 @@ export class RaceMetadata
 
 		this.race = { name: file.basename };
 
-		const hpMatch = /.+?points de vie.+?niveau 1.+?(\d+)\.?\n?/i.exec(this.content);
+		const hpMatch = /.+?points de vie.+?niveau 1.+?(\d+)\.?\r?\n?/i.exec(this.content);
 		this.health = hpMatch ? parseInt(hpMatch[1]) : 0;
 
-		let bonusesMatch = /Augmentation.+? (.+?)\n/i.exec(this.content);
+		let bonusesMatch = /augmentation.+? (.+?)\r?\n/i.exec(this.content);
 
 		if(!bonusesMatch)
 		{
@@ -313,7 +313,7 @@ export class RaceMetadata
 			for(let i = 0; i < this.metadata.links.length; i++)
 			{
 				const link = this.metadata.links[i];
-				if(link.position.start.offset > start && link.position.end.offset < end)
+				if(link.position.start.offset >= start && link.position.end.offset <= end)
 					talents.push(TalentMetadata.fromLink(link.link));
 			}
 			talents.forEach(e => e.readonly = true);

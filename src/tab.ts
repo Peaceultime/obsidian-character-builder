@@ -30,6 +30,12 @@ export class Tab {
 		return this;
 	}
 	check(): boolean {
+		if(this.dirty)
+		{
+			this.render();
+			this.dirty = false;
+		}
+
 		return this.requiredList.map(e => e.validate()).every(e => !!e);
 	}
 	show(): void {
@@ -116,8 +122,23 @@ export class TabContainer {
 		if(!force && idx < 0 || idx >= this.tabs.length)
 			return false;
 
-		if(!force && idx > this.active && !this.tabs[this.active].check())
-			return false;
+		if(!force && idx > this.active)
+		{
+			for(let i = this.active; i < idx; i++)
+			{
+				if(!this.tabs[i].check())
+				{
+					this.tabs[this.active].hide();
+
+					this.tabs[i].show();
+					this.tabs[i].check();
+
+					this.active = i;
+
+					return false;
+				}
+			}
+		}
 
 		this.tabs[this.active].hide();
 		this.tabs[idx].show();
@@ -136,6 +157,9 @@ export class TabContainer {
 		const tab = this.tabs[this.active];
 		if(tab.dirty || force)
 			tab.render();
+
+		for(let i = this.active + 1; i < this.tabs.length; i++)
+			this.tabs[i].dirty = true;
 	}
 
 	cache(data: any): TabContainer

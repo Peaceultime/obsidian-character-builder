@@ -30,5 +30,7 @@ export class RaceTab extends Tab
 			subrace.update();
 			feature.update();
 		});
+		subrace.onChange(() => this.container.render(true));
+		feature.onChange(() => this.container.render(true));
 	}
 }
