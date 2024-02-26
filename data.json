@@ -1,0 +1,378 @@
+{
+  "views": [],
+  "settings": {
+    "charactersFolder": "99. Personnages",
+    "racesFolder": "3. Races/Liste des Races",
+    "talentsFolder": "2. Classes/2. Talents",
+    "characterTemplate": "99. Personnages/99. Template.md",
+    "maxStat": 60,
+    "maxInitialStat": 45,
+    "minStat": 15,
+    "statAmount": 245,
+    "pointsForHpFocus": 13,
+    "substatFirstLevel": 62,
+    "substatPerLevel": 22,
+    "substats": [
+      {
+        "name": "Athlétisme",
+        "stat": "strength"
+      },
+      {
+        "name": "Combat mêlée (Agi)#Corps à corps",
+        "stat": "dexterity"
+      },
+      {
+        "name": "Combat mêlée (Agi)#Épées",
+        "stat": "dexterity"
+      },
+      {
+        "name": "Combat mêlée#Corps à corps",
+        "stat": "strength"
+      },
+      {
+        "name": "Combat mêlée#Épées",
+        "stat": "strength"
+      },
+      {
+        "name": "Combat mêlée#Fléaux",
+        "stat": "strength"
+      },
+      {
+        "name": "Combat mêlée#Fouets",
+        "stat": "strength"
+      },
+      {
+        "name": "Combat mêlée#Haches",
+        "stat": "strength"
+      },
+      {
+        "name": "Combat mêlée#Lances",
+        "stat": "strength"
+      },
+      {
+        "name": "Combat mêlée#Bouclier",
+        "stat": "strength"
+      },
+      {
+        "name": "Nage (For)",
+        "stat": "strength"
+      },
+      {
+        "name": "Escalade (For)",
+        "stat": "strength"
+      },
+      {
+        "name": "Nage (Agi)",
+        "stat": "dexterity"
+      },
+      {
+        "name": "Escalade (Agi)",
+        "stat": "dexterity"
+      },
+      {
+        "name": "Combat distance#Arcs",
+        "stat": "dexterity"
+      },
+      {
+        "name": "Combat distance#Arbalètes",
+        "stat": "dexterity"
+      },
+      {
+        "name": "Combat distance#Armes de poing",
+        "stat": "dexterity"
+      },
+      {
+        "name": "Combat distance#Fusils",
+        "stat": "dexterity"
+      },
+      {
+        "name": "Combat distance#Fusil d'assaut",
+        "stat": "dexterity"
+      },
+      {
+        "name": "Combat distance#Mitrailleuses lourde",
+        "stat": "dexterity"
+      },
+      {
+        "name": "Combat distance#Armes lourdes",
+        "stat": "dexterity"
+      },
+      {
+        "name": "Acrobatique",
+        "stat": "dexterity"
+      },
+      {
+        "name": "Lancer",
+        "stat": "dexterity"
+      },
+      {
+        "name": "Conduite#Voiture",
+        "stat": "dexterity"
+      },
+      {
+        "name": "Conduite#Deux roue",
+        "stat": "dexterity"
+      },
+      {
+        "name": "Conduite#30 tonnes",
+        "stat": "dexterity"
+      },
+      {
+        "name": "Conduite#Monture",
+        "stat": "dexterity"
+      },
+      {
+        "name": "Conduite#Monture volante",
+        "stat": "dexterity"
+      },
+      {
+        "name": "Discrétion",
+        "stat": "dexterity"
+      },
+      {
+        "name": "Esquive",
+        "stat": "dexterity"
+      },
+      {
+        "name": "Finesse",
+        "stat": "dexterity"
+      },
+      {
+        "name": "Vitesse",
+        "stat": "dexterity"
+      },
+      {
+        "name": "Endurance",
+        "stat": "constitution"
+      },
+      {
+        "name": "Système immunitaire",
+        "stat": "constitution"
+      },
+      {
+        "name": "Physique",
+        "stat": "constitution"
+      },
+      {
+        "name": "Enquête",
+        "stat": "intelligence"
+      },
+      {
+        "name": "Education#Astronomie",
+        "stat": "intelligence"
+      },
+      {
+        "name": "Education#Botanique",
+        "stat": "intelligence"
+      },
+      {
+        "name": "Education#Biologie",
+        "stat": "intelligence"
+      },
+      {
+        "name": "Education#Chimie",
+        "stat": "intelligence"
+      },
+      {
+        "name": "Education#Cryptographie",
+        "stat": "intelligence"
+      },
+      {
+        "name": "Education#Géologie",
+        "stat": "intelligence"
+      },
+      {
+        "name": "Education#Mécanique",
+        "stat": "intelligence"
+      },
+      {
+        "name": "Education#Electronique",
+        "stat": "intelligence"
+      },
+      {
+        "name": "Education#Informatique",
+        "stat": "intelligence"
+      },
+      {
+        "name": "Education#Météorologie",
+        "stat": "intelligence"
+      },
+      {
+        "name": "Education#Zoologie",
+        "stat": "intelligence"
+      },
+      {
+        "name": "Histoire",
+        "stat": "intelligence"
+      },
+      {
+        "name": "Langue",
+        "stat": "intelligence"
+      },
+      {
+        "name": "Magie#Feu",
+        "stat": "intelligence"
+      },
+      {
+        "name": "Magie#Air",
+        "stat": "intelligence"
+      },
+      {
+        "name": "Magie#Eau",
+        "stat": "intelligence"
+      },
+      {
+        "name": "Magie#Terre",
+        "stat": "intelligence"
+      },
+      {
+        "name": "Magie#Lumière",
+        "stat": "intelligence"
+      },
+      {
+        "name": "Magie#Vide",
+        "stat": "intelligence"
+      },
+      {
+        "name": "Magie#Démonique",
+        "stat": "intelligence"
+      },
+      {
+        "name": "Magie#Sang",
+        "stat": "intelligence"
+      },
+      {
+        "name": "Magie#Nature",
+        "stat": "intelligence"
+      },
+      {
+        "name": "Magie#Mort",
+        "stat": "intelligence"
+      },
+      {
+        "name": "Magie#Temps",
+        "stat": "intelligence"
+      },
+      {
+        "name": "Magie#Espace",
+        "stat": "intelligence"
+      },
+      {
+        "name": "Magie#Illusion",
+        "stat": "intelligence"
+      },
+      {
+        "name": "Médecine",
+        "stat": "intelligence"
+      },
+      {
+        "name": "Religion",
+        "stat": "intelligence"
+      },
+      {
+        "name": "Dressage",
+        "stat": "perception"
+      },
+      {
+        "name": "Perception#Ouïe",
+        "stat": "perception"
+      },
+      {
+        "name": "Perception#Vue",
+        "stat": "perception"
+      },
+      {
+        "name": "Perception#Odorat",
+        "stat": "perception"
+      },
+      {
+        "name": "Perception#Goût",
+        "stat": "perception"
+      },
+      {
+        "name": "Psychologie",
+        "stat": "perception"
+      },
+      {
+        "name": "Survie#Foret",
+        "stat": "perception"
+      },
+      {
+        "name": "Survie#Ville",
+        "stat": "perception"
+      },
+      {
+        "name": "Survie#Campagne",
+        "stat": "perception"
+      },
+      {
+        "name": "Survie#Montagne",
+        "stat": "perception"
+      },
+      {
+        "name": "Survie#Toundra",
+        "stat": "perception"
+      },
+      {
+        "name": "Survie#Désert",
+        "stat": "perception"
+      },
+      {
+        "name": "Mensonge",
+        "stat": "charisma"
+      },
+      {
+        "name": "Séduction",
+        "stat": "charisma"
+      },
+      {
+        "name": "Intimidation",
+        "stat": "charisma"
+      },
+      {
+        "name": "Persuasion",
+        "stat": "charisma"
+      },
+      {
+        "name": "Représentation#Chant",
+        "stat": "charisma"
+      },
+      {
+        "name": "Représentation#Instrument à corde",
+        "stat": "charisma"
+      },
+      {
+        "name": "Représentation#Instrument à vent",
+        "stat": "charisma"
+      },
+      {
+        "name": "Représentation#Instrument à clavier",
+        "stat": "charisma"
+      },
+      {
+        "name": "Représentation#Instrument à percutions",
+        "stat": "charisma"
+      },
+      {
+        "name": "Représentation#Danse",
+        "stat": "charisma"
+      },
+      {
+        "name": "Représentation#Théâtre",
+        "stat": "charisma"
+      },
+      {
+        "name": "Représentation#Oratoire",
+        "stat": "charisma"
+      },
+      {
+        "name": "Sang froid",
+        "stat": "will"
+      },
+      {
+        "name": "Détermination",
+        "stat": "will"
+      }
+    ]
+  }
+}
