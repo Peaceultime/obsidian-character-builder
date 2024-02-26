@@ -250,7 +250,7 @@ export class StatBlockElement
 			if(this.options?.hasEvenLevelPicker)
 			{
 				for(let j = 2; j <= this.options?.hasEvenLevelPicker; j += 2)
-					levelBonus += this.metadata.levels.find(e => e.level === j).buffedStat === stats[i] ? 3 : 0;
+					levelBonus += this.metadata.levels.find(e => e.level === j).buffedStat === stats[i] ? 4 : 0;
 
 				const buffedStat = this.metadata.levels.find(e => e.level === this.options?.hasEvenLevelPicker).buffedStat;
 				if(this.options?.maxStat && stat.initial + stat.bonus + levelBonus >= this.options?.maxStat && buffedStat !== stats[i])
