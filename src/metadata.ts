@@ -108,7 +108,7 @@ export class TalentMetadata
 				this.stats.push({stat: stat, value: match[1]});
 		}
 
-		this.heading = this.metadata?.headings ? this.metadata?.headings[0]?.heading : file.basename;
+		this.heading = this.metadata?.headings ? this.metadata?.headings[0]?.heading : undefined;
 		this.stackable = /(?<!non )[Cc]umulable/.test(this.content);
 		this.level = Infinity;
 
@@ -146,7 +146,9 @@ export class TalentMetadata
 		}
 		else
 		{
-			return `![[${talent.name}#${Cache.cache(`talents/registry/${talent.name}/heading`)}]]`;
+			const heading = Cache.cache(`talents/registry/${talent.name}/heading`);
+
+			return heading ? `![[${talent.name}#${heading}]]` : `![[${talent.name}]]`;
 		}
 	}
 	static text(talent: Talent): string

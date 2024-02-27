@@ -17,6 +17,7 @@ export function print(data: any, template: string): string
 					.replaceAll("{feature-name}", `${data.race.feature}`)
 					.replaceAll("{feature-desc}", Cache.cache(`races/${data.setting}/content/${data.race.name}/features/${data.race.feature}`))
 					.replaceAll("{flavoring}", data.flavoring ?? "")
+					.replaceAll("{talents}", data.levels.flatMap(l => l.talents.flatMap(t => `${TalentMetadata.embed(t)}`)).join("\n"))
 					.replaceAll(/\{begin-level\}(.*)\{end-level\}/gs, (d, p1) => {
 						let result = "";
 						for(let i = 0; i < data.levels.length; i++)
